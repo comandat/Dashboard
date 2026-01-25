@@ -14,7 +14,7 @@ export const renderAddExpense = (container, state) => {
         <div class="mx-auto max-w-[1600px] w-full px-4 pb-20">
             <header class="mb-10 flex flex-wrap items-center justify-between gap-6">
                 <div class="flex flex-col gap-2">
-                    <button id="btn-back" 
+                    <button id="btn-back"
                         class="flex items-center gap-2 text-slate-500 hover:text-white transition-colors uppercase text-xs font-black tracking-[0.2em] mb-4"
                     >
                         <span class="material-symbols-outlined text-sm">arrow_back</span>
@@ -23,7 +23,7 @@ export const renderAddExpense = (container, state) => {
                     <h1 class="text-4xl font-black text-white tracking-tight uppercase">Gestiune Cheltuieli</h1>
                     <p class="text-slate-400 text-lg">Încărcare documente pentru extracție AI (n8n + Gemini).</p>
                 </div>
-                
+
                 <div class="flex items-center gap-4">
                     <button id="btn-manual"
                         class="flex h-14 items-center gap-3 rounded-2xl border-2 border-slate-700 bg-slate-800 px-8 text-base font-black text-slate-300 hover:text-white hover:border-slate-500 transition-all"
@@ -31,7 +31,7 @@ export const renderAddExpense = (container, state) => {
                         <span class="material-symbols-outlined text-2xl">edit_note</span>
                         ADĂUGARE MANUALĂ
                     </button>
-                    
+
                     <button id="btn-save-all"
                         class="hidden flex h-14 items-center gap-3 rounded-2xl bg-primary-600 px-8 text-base font-black text-white hover:bg-primary-500 transition-all shadow-2xl shadow-primary-600/30 disabled:opacity-30 disabled:grayscale"
                     >
@@ -54,7 +54,7 @@ export const renderAddExpense = (container, state) => {
                         <p class="text-slate-500 font-bold uppercase tracking-widest text-xs">Trage factura PDF aici pentru analiză Gemini</p>
                     </div>
                 </div>
-                
+
                 <div class="absolute top-4 right-4 flex items-center gap-2 px-4 py-2 bg-slate-900/60 border border-slate-700 rounded-full">
                      <div class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></div>
                      <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">n8n Live: Gata</span>
@@ -96,6 +96,7 @@ export const renderAddExpense = (container, state) => {
         const saveAllBtn = document.getElementById('btn-save-all');
 
         if (drafts.length === 0) {
+            list.innerHTML = '';
             emptyState.style.display = 'flex';
             saveAllBtn.classList.add('hidden');
             return;
@@ -122,14 +123,8 @@ export const renderAddExpense = (container, state) => {
             }
         }
 
-        // Render List
-        // Note: In vanilla, naively re-rendering inputs causes loss of focus. 
-        // We really should use a diff or only re-render if structure changes.
-        // For simplicity in this demo, we re-render entirely. 
-        // Use 'input' event to update state immediately so re-renders don't revert data.
-
         list.innerHTML = drafts.map(draft => `
-            <div 
+            <div
                 class="rounded-[2.5rem] border transition-all p-8 flex flex-col lg:flex-row gap-8 items-start lg:items-center relative overflow-hidden bg-slate-800 shadow-xl ${draft.isProcessing ? 'border-amber-500/30' : draft.error ? 'border-red-500/50' : 'border-slate-700'
             } ${draft.isManual ? 'bg-slate-800/80 border-slate-600' : 'hover:border-primary-500/50'}"
             >
@@ -161,8 +156,8 @@ export const renderAddExpense = (container, state) => {
                 <div class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
                     <div class="flex flex-col gap-2">
                         <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Furnizor</label>
-                        <input 
-                            value="${draft.vendor || ''}" 
+                        <input
+                            value="${draft.vendor || ''}"
                             ${draft.isProcessing ? 'disabled' : ''}
                             data-id="${draft.tempId}" data-field="vendor"
                             class="draft-input rounded-2xl bg-slate-900 border border-slate-700 px-5 py-4 text-sm font-bold text-white focus:border-primary-500 focus:outline-none transition-all shadow-inner"
@@ -170,9 +165,9 @@ export const renderAddExpense = (container, state) => {
                     </div>
                     <div class="flex flex-col gap-2">
                         <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Sumă (RON)</label>
-                        <input 
+                        <input
                             type="number"
-                            value="${draft.amount || ''}" 
+                            value="${draft.amount || ''}"
                             ${draft.isProcessing ? 'disabled' : ''}
                             data-id="${draft.tempId}" data-field="amount"
                             class="draft-input rounded-2xl bg-slate-900 border border-slate-700 px-5 py-4 text-sm font-bold text-white focus:border-primary-500 focus:outline-none transition-all shadow-inner"
@@ -180,9 +175,9 @@ export const renderAddExpense = (container, state) => {
                     </div>
                     <div class="flex flex-col gap-2">
                         <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Data Facturii</label>
-                        <input 
+                        <input
                             type="date"
-                            value="${draft.date || ''}" 
+                            value="${draft.date || ''}"
                             ${draft.isProcessing ? 'disabled' : ''}
                             data-id="${draft.tempId}" data-field="date"
                             class="draft-input rounded-2xl bg-slate-900 border border-slate-700 px-5 py-4 text-sm font-bold text-white focus:border-primary-500 focus:outline-none transition-all shadow-inner"
@@ -190,8 +185,8 @@ export const renderAddExpense = (container, state) => {
                     </div>
                     <div class="flex flex-col gap-2">
                         <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Serie/Nr</label>
-                        <input 
-                            value="${draft.invoice_id || ''}" 
+                        <input
+                            value="${draft.invoice_id || ''}"
                             ${draft.isProcessing ? 'disabled' : ''}
                             data-id="${draft.tempId}" data-field="invoice_id"
                             class="draft-input rounded-2xl bg-slate-900 border border-slate-700 px-5 py-4 text-sm font-bold text-white focus:border-primary-500 focus:outline-none transition-all shadow-inner"
@@ -200,7 +195,7 @@ export const renderAddExpense = (container, state) => {
                 </div>
 
                 <div class="w-full lg:w-auto flex items-center gap-3">
-                    <button 
+                    <button
                         data-id="${draft.tempId}"
                         class="btn-save flex-1 lg:flex-none flex h-14 items-center justify-center gap-3 rounded-2xl bg-emerald-600 px-8 text-xs font-black text-white hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20 disabled:opacity-30 disabled:grayscale"
                         ${draft.isProcessing || !draft.vendor || !draft.amount ? 'disabled' : ''}
@@ -208,7 +203,7 @@ export const renderAddExpense = (container, state) => {
                         <span class="material-symbols-outlined text-lg">check_circle</span>
                         VERIFICAT
                     </button>
-                    <button 
+                    <button
                         data-id="${draft.tempId}"
                         class="btn-delete flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-700 text-slate-500 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50 transition-all"
                     >
@@ -218,19 +213,15 @@ export const renderAddExpense = (container, state) => {
             </div>
         `).join('');
 
-        // Attach listeners
-        // Inputs
+        // Attach Input Listeners (Not Delegated to keep focus logic simple)
         document.querySelectorAll('.draft-input').forEach(input => {
-            input.addEventListener('input', (e) => {
+            input.oninput = (e) => {
                 const id = e.target.getAttribute('data-id');
                 const field = e.target.getAttribute('data-field');
                 const val = e.target.type === 'number' ? Number(e.target.value) : e.target.value;
                 const draft = drafts.find(d => d.tempId === id);
                 if (draft) {
                     draft[field] = val;
-                    // Don't re-render entire list on keypress to keep focus, just update object
-                    // Only re-render if we need to update status buttons (e.g. valid/invalid)
-                    // For now, let's update button status manually
                     const btn = document.querySelector(`.btn-save[data-id="${id}"]`);
                     if (draft.vendor && draft.amount && !draft.isProcessing) {
                         btn.removeAttribute('disabled');
@@ -238,15 +229,38 @@ export const renderAddExpense = (container, state) => {
                         btn.setAttribute('disabled', 'true');
                     }
                 }
-            });
+            };
         });
 
-        // Save Button
-        document.querySelectorAll('.btn-save').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const id = e.currentTarget.getAttribute('data-id');
+        // Event Delegation for List Actions
+        list.onclick = async (e) => {
+            // Delete
+            const deleteBtn = e.target.closest('.btn-delete');
+            if (deleteBtn) {
+                const id = deleteBtn.getAttribute('data-id');
+                drafts = drafts.filter(d => d.tempId !== id);
+                renderDrafts();
+                return;
+            }
+
+            // Preview
+            const previewBtn = e.target.closest('.btn-preview');
+            if (previewBtn) {
+                const id = previewBtn.getAttribute('data-id');
+                const draft = drafts.find(d => d.tempId === id);
+                if (draft && !draft.isManual && draft.file) {
+                    openPreview(draft);
+                }
+                return;
+            }
+
+            // Save (Verified)
+            const saveBtn = e.target.closest('.btn-save');
+            if (saveBtn) {
+                const id = saveBtn.getAttribute('data-id');
                 const draft = drafts.find(d => d.tempId === id);
                 if (draft) {
+                    saveBtn.setAttribute('disabled', 'true');
                     await addExpense({
                         vendor: draft.vendor,
                         amount: draft.amount,
@@ -257,28 +271,9 @@ export const renderAddExpense = (container, state) => {
                     drafts = drafts.filter(d => d.tempId !== id);
                     renderDrafts();
                 }
-            });
-        });
-
-        // Delete Button
-        document.querySelectorAll('.btn-delete').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = e.currentTarget.getAttribute('data-id');
-                drafts = drafts.filter(d => d.tempId !== id);
-                renderDrafts();
-            });
-        });
-
-        // Preview
-        document.querySelectorAll('.btn-preview').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = e.currentTarget.getAttribute('data-id');
-                const draft = drafts.find(d => d.tempId === id);
-                if (draft && !draft.isManual && draft.file) {
-                    openPreview(draft);
-                }
-            });
-        });
+                return;
+            }
+        };
     };
 
     const openPreview = (draft) => {
@@ -311,11 +306,10 @@ export const renderAddExpense = (container, state) => {
         drafts = [...newDrafts, ...drafts];
         renderDrafts();
 
-        // Process sequentially to be nice to n8n
+        // Process sequentially
         for (const draft of newDrafts) {
             try {
                 const result = await extractExpenseFromDocument(draft.file);
-                // Update draft in array
                 const target = drafts.find(d => d.tempId === draft.tempId);
                 if (target) {
                     Object.assign(target, result);
@@ -368,7 +362,7 @@ export const renderAddExpense = (container, state) => {
             });
         }
 
-        drafts = drafts.filter(d => d.isProcessing || !d.vendor || !d.amount); // Keep unprocessed
+        drafts = drafts.filter(d => d.isProcessing || !d.vendor || !d.amount);
         isSavingAll = false;
         renderDrafts();
         if (drafts.length === 0) store.setView('financial');
