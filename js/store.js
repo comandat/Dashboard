@@ -7,7 +7,7 @@ import { getFinancialSummary, getMonthlyData, getRecentExpenses, getDeadStock, g
 const initialState = {
     currentView: 'dashboard',
     loading: true,
-    
+
     // Financial Data
     financialPeriod: 'current_month',
     financialSummary: null,
@@ -19,13 +19,11 @@ const initialState = {
 
     // Operational Data
     operationalOrders: [],
-    
-    // Listeners for state changes
-    listeners: [],
 };
 
 export const store = {
     state: { ...initialState },
+    listeners: [],
 
     subscribe(listener) {
         this.listeners.push(listener);
@@ -74,7 +72,7 @@ export const store = {
 
     async setFinancialPeriod(period) {
         this.setState({ financialPeriod: period }); // Optimistic update
-        
+
         // Fetch new data
         const [newSummary, newExpenses] = await Promise.all([
             getFinancialSummary(period),
