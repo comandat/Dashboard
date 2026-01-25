@@ -66,12 +66,13 @@ export const renderAddExpense = (container, state) => {
                     <h2 class="text-sm font-black text-slate-500 uppercase tracking-[0.3em]">Validare Date Extrase</h2>
                 </div>
 
+                <div id="empty-state" class="flex flex-col items-center justify-center py-24 text-slate-700 gap-6 grayscale opacity-20 border-2 border-dashed border-slate-800 rounded-[3rem]">
+                    <span class="material-symbols-outlined text-9xl">post_add</span>
+                    <p class="text-2xl font-black uppercase tracking-widest">Încarcă o factură pentru a începe</p>
+                </div>
+
                 <div id="drafts-list" class="flex flex-col gap-4">
                     <!-- Drafts Rendered Here -->
-                    <div id="empty-state" class="flex flex-col items-center justify-center py-24 text-slate-700 gap-6 grayscale opacity-20 border-2 border-dashed border-slate-800 rounded-[3rem]">
-                        <span class="material-symbols-outlined text-9xl">post_add</span>
-                        <p class="text-2xl font-black uppercase tracking-widest">Încarcă o factură pentru a începe</p>
-                    </div>
                 </div>
             </div>
 
