@@ -5,6 +5,7 @@
 
 // Webhook URL
 const N8N_WEBHOOK_URL = 'https://automatizare.comandat.ro/webhook/convert-invoice-data';
+const LOGIN_WEBHOOK_URL = 'https://automatizare.comandat.ro/webhook/637e1f6e-7beb-4295-89bd-4d7022f12d45';
 
 // Simulates: /webhook/financial-summary
 export const getFinancialSummary = async (period = 'current_month') => {
@@ -164,3 +165,29 @@ export const addExpense = async (expense) => {
         setTimeout(() => resolve(true), 800);
     })
 }
+
+export const loginUser = async (accessCode) => {
+    try {
+        // Trimitem ca 'text/plain' pentru ca n8n să citească raw body și să faci tu JSON.parse($json.body)
+        const response = await fetch(LOGIN_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' }, 
+            body: JSON.stringify({ code: accessCode })
+        });
+
+        if (!response.ok) throw new Error('Eroare conexiune server');
+
+        const data = await response.json();
+        
+        // Verificăm răspunsul definit în nodul tău "Respond to Webhook"
+        if (data.status === 'success') {
+            return { success: true, user: data.user };
+        } else {
+            return { success: false };
+        }
+
+    } catch (error) {
+        console.error("Login error:", error);
+        throw error;
+    }
+};
