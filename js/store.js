@@ -1,30 +1,28 @@
 /**
  * Global Store
- * Mimics the useState/useEffect logic from the original React App.tsx
+ * Gestionează starea aplicației și datele venite din n8n
  */
-import { getFinancialSummary, getMonthlyData, getRecentExpenses, getDeadStock, getOperationalAlerts } from './api.js';
+import { getDashboardData } from './api.js';
 
 const initialState = {
     currentView: 'dashboard',
     loading: true,
-
-    // Financial Data
     financialPeriod: 'current_month',
+
+    // Data Holders (populate din n8n)
     financialSummary: null,
     monthlyData: [],
     expenses: [],
-
-    // Stock Data
     deadStock: [],
-
-    // Operational Data
     operationalOrders: [],
+    topCategories: [] // Nou: Categoriile vin acum din API, nu mai sunt hardcodate
 };
 
 export const store = {
     state: { ...initialState },
     listeners: [],
 
+    // Sistem simplu de abonare pentru update-uri UI
     subscribe(listener) {
         this.listeners.push(listener);
         return () => {
@@ -41,52 +39,62 @@ export const store = {
         this.notify();
     },
 
+    /**
+     * Inițializare: Trage toate datele la prima încărcare
+     */
     async init() {
         this.setState({ loading: true });
         try {
-            const [summary, monthly, recentExpenses, stock, orders] = await Promise.all([
-                getFinancialSummary(this.state.financialPeriod),
-                getMonthlyData(),
-                getRecentExpenses(this.state.financialPeriod),
-                getDeadStock(),
-                getOperationalAlerts()
-            ]);
+            // Apel unic către n8n pentru toate datele
+            const data = await getDashboardData(this.state.financialPeriod);
 
             this.setState({
-                financialSummary: summary,
-                monthlyData: monthly,
-                expenses: recentExpenses,
-                deadStock: stock,
-                operationalOrders: orders,
+                financialSummary: data.financialSummary,
+                monthlyData: data.monthlyData,
+                expenses: data.expenses,
+                deadStock: data.deadStock,
+                operationalOrders: data.operationalOrders,
+                topCategories: data.topCategories,
                 loading: false
             });
         } catch (error) {
-            console.error("Error loading initial data", error);
+            console.error("Eroare inițializare date:", error);
             this.setState({ loading: false });
         }
     },
 
+    // Schimbarea vederii (paginii)
     async setView(view) {
         this.setState({ currentView: view });
     },
 
+    /**
+     * Schimbarea filtrului de perioadă (ex: Luna Trecută)
+     * Reîncarcă datele din n8n cu noul filtru.
+     */
     async setFinancialPeriod(period) {
-        this.setState({ financialPeriod: period }); // Optimistic update
+        this.setState({ financialPeriod: period, loading: true });
+        
+        try {
+            const data = await getDashboardData(period);
 
-        // Fetch new data
-        const [newSummary, newExpenses] = await Promise.all([
-            getFinancialSummary(period),
-            getRecentExpenses(period)
-        ]);
-
-        this.setState({
-            financialSummary: newSummary,
-            expenses: newExpenses
-        });
+            this.setState({
+                financialSummary: data.financialSummary,
+                monthlyData: data.monthlyData,
+                expenses: data.expenses,
+                deadStock: data.deadStock,
+                operationalOrders: data.operationalOrders,
+                topCategories: data.topCategories,
+                loading: false
+            });
+        } catch (error) {
+            console.error("Eroare filtrare perioadă:", error);
+            this.setState({ loading: false });
+        }
     },
 
+    // Refresh rapid (opțional)
     async refreshExpenses() {
-        const newExpenses = await getRecentExpenses(this.state.financialPeriod);
-        this.setState({ expenses: newExpenses });
+        await this.init();
     }
 };
