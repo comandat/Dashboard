@@ -82,20 +82,41 @@ export const loginUser = async (accessCode) => {
 export const extractExpenseFromDocument = async (file) => {
     const formData = new FormData();
     formData.append('data', file); 
+    
     try {
         const response = await fetch(EXTRACT_WEBHOOK_URL, {
             method: 'POST',
             body: formData,
         });
+
         if (!response.ok) throw new Error(`Eroare n8n: ${response.statusText}`);
+        
         const result = await response.json();
+
+        // LOGICA DE PRELUCRARE DATE PENTRU DASHBOARD
+        const total = Number(result.factura_total) || 0;
+        let tva = Number(result.factura_tva) || 0;
+
+        // Dacă TVA e 0, recomandăm 21% din Total (conform cerinței)
+        // Notă: De obicei TVA e inclus, deci calculul ar fi Total - (Total / 1.19), 
+        // dar am pus direct 21% din total conform cererii tale.
+        if (tva === 0 && total > 0) {
+            tva = parseFloat((total * 0.21).toFixed(2));
+        }
+
+        const vendor = result.furnizor || '';
+        const detectedCategory = detectCategory(vendor);
+
         return {
-            vendor: result.furnizor || '',
-            amount: result.factura_total || result.factura_valoare || 0,
-            date: result.date || new Date().toISOString().split('T')[0],
+            vendor: vendor,
             invoice_id: result.source_doc || '',
-            category: 'Logistica'
+            amount: total,          // Mapare factura_total -> dashboard amount
+            currency: result.factura_moneda || 'RON',
+            tva: tva,
+            date: result.date || new Date().toISOString().split('T')[0],
+            category: detectedCategory // Categoria detectată automat
         };
+
     } catch (error) {
         console.error("[n8n] Eroare la extracție:", error);
         throw error;
@@ -103,7 +124,45 @@ export const extractExpenseFromDocument = async (file) => {
 };
 
 export const addExpense = async (expense) => {
+    // Aici vei modifica ulterior pentru a trimite în PostgreSQL
+    console.log("Saving expense:", expense);
     return new Promise((resolve) => {
         setTimeout(() => resolve(true), 500);
     })
+};
+
+const CATEGORY_MAP = {
+    "OPERATIONAL": [
+        "ITAROM", "CERTSIGN", "I-TOM SOLUTIONS", "D & C CONTA", 
+        "WEEX GLOBAL", "KONTAS", "ROGRI", "BIRO-MEDIA", 
+        "AMAZONAS", "FLUENT", "CUASAR", "DEDEMAN"
+    ],
+    "TAXE": [
+        "BUGETUL DE STAT", "DIRECTIA GENERALA", "FINANTELOR PUBLICE", "ANAF", "TREZORERIA"
+    ],
+    "COMISIOANE": [
+        "DANTE INTERNATIONAL", "TRENDYOL", "BITFACTOR", 
+        "BRAND DESIGN", "EMAG"
+    ],
+    "TRANSPORT": [
+        "SEZELIA", "DELIVERY SOLUTIONS", "FAN COURIER", "DYNAMIC PARCEL", "SAMEDAY"
+    ],
+    "INFRASTRUCTURA": [
+        "SMARTIT GLOBAL", "GOOGLE", "RAILWAY", "LEMON SQUEEZY", "BROWSE AL"
+    ]
+};
+
+// Funcție ajutătoare pentru detectarea categoriei
+const detectCategory = (vendorName) => {
+    if (!vendorName) return "ALTELE";
+    const cleanName = vendorName.toUpperCase();
+
+    for (const [category, suppliers] of Object.entries(CATEGORY_MAP)) {
+        for (const s of suppliers) {
+            if (cleanName.includes(s)) {
+                return category;
+            }
+        }
+    }
+    return "ALTELE";
 };
