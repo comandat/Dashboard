@@ -9,29 +9,29 @@ export const renderFinancial = (container, state) => {
     const monthlyData = state.monthlyData;
     const selectedPeriod = state.financialPeriod;
 
-    // Chart Data Preparation
+    // Chart Data Preparation - NOILE CATEGORII
     const categories = monthlyData.map(d => d.month);
+    
     const series = [
         { name: 'Profit Net', data: monthlyData.map(d => d.profit) },
         { name: 'COGS', data: monthlyData.map(d => d.cogs) },
-        { name: 'Logistică', data: monthlyData.map(d => d.logistics) },
-        { name: 'Taxe', data: monthlyData.map(d => d.platform_fees) }, // Labelled platform_fees as Taxes based on color/context
-        { name: 'Fixe', data: monthlyData.map(d => d.fixed_ops) }
+        { name: 'Comisioane', data: monthlyData.map(d => d.comisioane) },
+        { name: 'Transport', data: monthlyData.map(d => d.transport) },
+        { name: 'Infrastructură', data: monthlyData.map(d => d.infrastructura) },
+        { name: 'Taxe', data: monthlyData.map(d => d.taxe) },
+        { name: 'Altele', data: monthlyData.map(d => d.altele) }
     ];
 
     const html = `
     <div class="mx-auto max-w-[1600px] w-full px-2">
-      <!-- Header -->
       <header class="mb-10 flex flex-wrap items-center justify-between gap-4">
         <div class="flex flex-col gap-1">
           <h1 class="text-4xl font-black tracking-tight text-white uppercase">Prezentare Financiară</h1>
-          <p class="text-slate-400 text-lg">Analiza veniturilor și gestiunea detaliată a cheltuielilor operaționale.</p>
+          <p class="text-slate-400 text-lg">Analiza veniturilor și structura detaliată a costurilor.</p>
         </div>
       </header>
 
-      <!-- KPI & Expenses SECTION (Filtered) -->
       <div class="mb-10 rounded-[2rem] border border-slate-700 bg-slate-800/50 p-4 shadow-2xl overflow-hidden backdrop-blur-sm">
-        <!-- Filter Control Header -->
         <div class="flex flex-wrap items-center justify-between gap-6 p-6 border-b border-slate-700/50 bg-slate-800/80 rounded-t-[1.5rem]">
             <div class="flex items-center gap-4">
                 <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-600/10 text-primary-500 border border-primary-500/20 shadow-inner">
@@ -62,13 +62,12 @@ export const renderFinancial = (container, state) => {
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 p-6">
-            <!-- Scorecards - Left 3/4 -->
             <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 content-start">
                  ${[
-            { label: 'Venit Total', value: `${summary.revenue.toLocaleString('ro-RO')} RON`, change: '+5.2%', color: 'text-emerald-400', icon: 'payments' },
-            { label: 'Profit Net', value: `${summary.net_profit.toLocaleString('ro-RO')} RON`, change: '+8.1%', color: 'text-emerald-400', icon: 'trending_up' },
-            { label: 'Cheltuieli Totale', value: `${summary.expenses_total.toLocaleString('ro-RO')} RON`, sub: 'Fixe: 25k | Var: 15k', color: 'text-slate-400', icon: 'outbound' },
-            { label: 'Marja Netă %', value: `${summary.margin_percent}%`, change: '+2.9%', color: 'text-emerald-400', icon: 'percent' },
+            { label: 'Venit Total', value: `${summary.revenue.toLocaleString('ro-RO')} RON`, change: null, color: 'text-emerald-400', icon: 'payments' },
+            { label: 'Profit Net', value: `${summary.net_profit.toLocaleString('ro-RO')} RON`, change: null, color: summary.net_profit >= 0 ? 'text-emerald-400' : 'text-red-400', icon: 'trending_up' },
+            { label: 'Cheltuieli Totale', value: `${summary.expenses_total.toLocaleString('ro-RO')} RON`, sub: null, color: 'text-slate-400', icon: 'outbound' },
+            { label: 'Marja Netă %', value: `${summary.margin_percent}%`, change: null, color: summary.margin_percent >= 0 ? 'text-emerald-400' : 'text-red-400', icon: 'percent' },
         ].map((card) => `
                     <div class="flex items-center gap-6 rounded-[1.5rem] border border-slate-700 bg-slate-800 p-8 hover:border-primary-500/50 hover:bg-slate-700/30 transition-all group shadow-sm">
                         <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-slate-500 group-hover:bg-primary-600 group-hover:text-white transition-all border border-slate-700 shadow-inner group-hover:shadow-primary-500/50">
@@ -86,10 +85,9 @@ export const renderFinancial = (container, state) => {
                 `).join('')}
             </div>
 
-            <!-- Recent Expenses List - Right 1/4 -->
             <div class="lg:col-span-1 rounded-[1.5rem] border border-slate-700 bg-slate-900 p-6 flex flex-col h-[600px] lg:h-auto shadow-inner">
                 <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Cheltuieli</h3>
+                    <h3 class="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Cheltuieli Recente</h3>
                     <button id="btn-add-expense-fin"
                         class="flex h-10 w-10 items-center justify-center rounded-full bg-primary-600 text-white hover:bg-primary-500 shadow-xl shadow-primary-600/30 transition-all hover:scale-110 active:scale-95"
                     >
@@ -118,15 +116,16 @@ export const renderFinancial = (container, state) => {
                                 <div class="flex items-center gap-4">
                                     <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-800 text-slate-500 group-hover:bg-primary-600 group-hover:text-white transition-all border border-slate-700 shadow-inner">
                                         <span class="material-symbols-outlined text-2xl">
-                                            ${expense.category === 'Logistica' ? 'local_shipping' :
-                expense.category === 'Taxe' ? 'account_balance' :
-                    expense.category === 'Salarii' ? 'badge' : 'receipt_long'}
+                                            ${expense.category.includes('TRANSPORT') ? 'local_shipping' :
+                                              expense.category.includes('TAXE') ? 'account_balance' :
+                                              expense.category.includes('SALARII') ? 'badge' : 
+                                              expense.category.includes('COMISIOANE') ? 'percent' : 'receipt_long'}
                                         </span>
                                     </div>
                                     <div class="overflow-hidden">
                                         <p class="text-sm font-black text-white truncate group-hover:text-primary-400 transition-colors">${expense.vendor}</p>
                                         <p class="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2 mt-1">
-                                             ${expense.category} <span class="text-slate-700">•</span> <span class="px-2 py-0.5 rounded-full ${expense.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}">${expense.status}</span>
+                                             ${expense.category}
                                         </p>
                                     </div>
                                 </div>
@@ -142,14 +141,9 @@ export const renderFinancial = (container, state) => {
         </div>
       </div>
 
-      <!-- CHART SECTION (Full Width) -->
       <div class="rounded-[2.5rem] border border-slate-700 bg-slate-800 p-10 shadow-2xl relative overflow-hidden">
-            <div class="absolute top-10 right-10 px-4 py-2 bg-slate-900/60 border border-slate-700 rounded-full flex items-center gap-3 shadow-lg">
-                 <div class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></div>
-                 <span class="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">LIVE DATA STREAM</span>
-            </div>
             <h3 class="text-2xl font-black text-white mb-2 uppercase tracking-tight">Dinamica Componentelor Venitului</h3>
-            <p class="text-base text-slate-500 mb-12">Vizualizare structurală a distribuției financiare pe ultimele luni.</p>
+            <p class="text-base text-slate-500 mb-12">Vizualizare Profit, COGS și distribuția costurilor operaționale (Transport, Comisioane, Taxe).</p>
             
             <div class="h-[450px] w-full px-2" id="financial-chart"></div>
       </div>
@@ -177,15 +171,25 @@ export const renderFinancial = (container, state) => {
             type: 'bar',
             height: '100%',
             stacked: true,
-            stackType: '100%', // Match 'expand'
+            stackType: 'normal', // Normal stack to see actual values
             toolbar: { show: false },
             fontFamily: 'Inter, sans-serif'
         },
-        colors: ['#34d399', '#fbbf24', '#60a5fa', '#a78bfa', '#f472b6'],
+        // Culori distincte pentru fiecare categorie
+        colors: [
+            '#34d399', // Profit Net (Verde)
+            '#fbbf24', // COGS (Galben)
+            '#f87171', // Comisioane (Rosu deschis)
+            '#60a5fa', // Transport (Albastru)
+            '#a78bfa', // Infrastructura (Mov)
+            '#f472b6', // Taxe (Roz)
+            '#94a3b8'  // Altele (Gri)
+        ],
         plotOptions: {
             bar: {
                 horizontal: false,
-                columnWidth: '55%',
+                columnWidth: '60%',
+                borderRadius: 4
             },
         },
         dataLabels: { enabled: false },
@@ -198,7 +202,13 @@ export const renderFinancial = (container, state) => {
             axisBorder: { show: false },
             axisTicks: { show: false }
         },
-        yaxis: { show: false },
+        yaxis: { 
+            show: true,
+            labels: {
+                style: { colors: '#64748b', fontSize: '11px', fontWeight: 600 },
+                formatter: (val) => val >= 1000 ? `${(val/1000).toFixed(0)}k` : val.toFixed(0)
+            }
+        },
         grid: {
             borderColor: '#334155',
             strokeDashArray: 4,
