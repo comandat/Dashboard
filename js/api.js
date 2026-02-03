@@ -18,7 +18,7 @@ const VENDOR_DB_MAPPING = {
     "DEDEMAN SRL": ["DEDEMAN"],
     "SMARTIT GLOBAL SRL": ["SMARTIT"],
     "MECANO VALMAR SRL": ["MECANO"],
-    " Rogri Impex SRL": ["ROGRI"], 
+    "Rogri Impex SRL": ["ROGRI"], 
     "DANTE INTERNATIONAL SA": ["DANTE", "EMAG"],
     "BRAND DESIGN TEAM SRL": ["BRAND DESIGN"],
     "SEZELIA COM SRL": ["SEZELIA"],
@@ -202,4 +202,5 @@ export const addExpense = async (expense) => {
     console.warn("Use syncExpenses instead.");
     return true;
 };
+
 
