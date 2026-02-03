@@ -213,7 +213,7 @@ export const renderAddExpense = (container, state) => {
                     if (draft.error) {
                         draft.error = false;
                         renderDrafts(); // Re-render pentru a scoate roșul
-                        return; // Stop here to avoid loop, though render is fast
+                        return;
                     }
 
                     if (field === 'amount' && !isNaN(val)) {
@@ -320,7 +320,8 @@ export const renderAddExpense = (container, state) => {
             const netVal = (parseFloat(draft.amount) - parseFloat(draft.tva)).toFixed(2);
             return {
                 tempId: draft.tempId,
-                source_doc: draft.invoice_id,
+                // MODIFICARE: Adăugăm prefixul MANUAL-INTERNAL- pentru a proteja la ștergerea automată
+                source_doc: 'MANUAL-INTERNAL-' + (draft.invoice_id || ''), 
                 furnizor: draft.vendor,
                 factura_valoare: Number(netVal),
                 factura_tva: Number(draft.tva),
@@ -331,7 +332,6 @@ export const renderAddExpense = (container, state) => {
             };
         });
 
-        // 1. Trimite Batch la n8n
         const response = await syncExpenses(payload);
 
         if (response.error) {
@@ -341,8 +341,6 @@ export const renderAddExpense = (container, state) => {
             return;
         }
 
-        // 2. Proceseaza Raspunsul
-        // response.results = [{ tempId, status: 'saved' | 'duplicate', message }]
         const savedIds = [];
         let duplicateCount = 0;
 
@@ -354,20 +352,18 @@ export const renderAddExpense = (container, state) => {
                 if (res.status === 'saved') {
                     savedIds.push(res.tempId);
                 } else if (res.status === 'duplicate') {
-                    draft.error = true; // Activeaza chenarul rosu
+                    draft.error = true; 
                     duplicateCount++;
                 }
             });
         }
 
-        // 3. Sterge ce s-a salvat
         drafts = drafts.filter(d => !savedIds.includes(d.tempId));
         
         isSavingAll = false;
         renderDrafts();
 
         if (duplicateCount > 0) {
-            // Nu dam alert enervant, utilizatorul vede rosu in lista
             console.log("Duplicate detectate");
         } else if (drafts.length === 0) {
             store.setView('financial');
