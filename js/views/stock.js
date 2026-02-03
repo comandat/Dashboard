@@ -4,39 +4,29 @@
 import { store } from '../store.js';
 
 export const renderStock = (container, state) => {
-    const deadStock = state.deadStock;
+    const deadStock = state.deadStock || [];
+    // Datele vin acum din n8n prin state. Dacă nu sunt încărcate, folosim array gol.
+    const topCategories = state.topCategories || [];
+    
     let showAllCategories = false;
 
-    // Mock Data (Static from App code)
-    const topCategories = [
-        { rank: 1, cat: 'Electronice', val: '560.085 RON', speed: '2.4', status: 'Rapid', statusColor: 'text-emerald-400', icon: 'devices' },
-        { rank: 2, cat: 'Îmbrăcăminte', val: '458.490 RON', speed: '3.1', status: 'Rapid', statusColor: 'text-emerald-400', icon: 'apparel' },
-        { rank: 3, cat: 'Uz Casnic', val: '382.000 RON', speed: '0.5', status: 'Lent', statusColor: 'text-red-400', icon: 'chair' },
-        { rank: 4, cat: 'Sportive', val: '303.645 RON', speed: '1.2', status: 'Mediu', statusColor: 'text-amber-400', icon: 'fitness_center' },
-        { rank: 5, cat: 'Auto', val: '250.120 RON', speed: '1.8', status: 'Mediu', statusColor: 'text-amber-400', icon: 'directions_car' },
-        { rank: 6, cat: 'Jucării', val: '210.500 RON', speed: '4.2', status: 'Rapid', statusColor: 'text-emerald-400', icon: 'toys' },
-        { rank: 7, cat: 'Grădină', val: '180.300 RON', speed: '0.8', status: 'Lent', statusColor: 'text-red-400', icon: 'yard' },
-        { rank: 8, cat: 'Cosmetice', val: '150.800 RON', speed: '3.5', status: 'Rapid', statusColor: 'text-emerald-400', icon: 'spa' },
-        { rank: 9, cat: 'Birotică', val: '120.400 RON', speed: '1.5', status: 'Mediu', statusColor: 'text-amber-400', icon: 'print' },
-        { rank: 10, cat: 'Pet Shop', val: '98.200 RON', speed: '2.1', status: 'Mediu', statusColor: 'text-amber-400', icon: 'pets' },
-    ];
-
-    // Chart Data
+    // Chart Data (Momentan static sau poate fi adus din API în viitor)
     const skuTrendMonths = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Noi', 'Dec'];
     const skuTrendSold = [450, 480, 520, 510, 590, 610, 650, 720, 680, 750, 820, 950];
     const skuTrendPosted = [520, 540, 600, 620, 650, 700, 720, 800, 820, 850, 900, 1000];
 
     const getHTML = (fullCats) => {
+        // Logica de afișare (Primele 5 sau toate)
         const visibleCategories = fullCats ? topCategories : topCategories.slice(0, 5);
+        
         return `
         <div class="mx-auto max-w-[1600px] pb-12 w-full px-2">
             <div class="mb-8">
                 <h1 class="text-4xl font-black text-white tracking-tight">Analiză Stoc & Lichidare</h1>
-                <p class="text-slate-400 mt-2 text-lg">Monitorizare inventar, strategii de lichidare și performanță pe categorii (ultimele 12 luni).</p>
+                <p class="text-slate-400 mt-2 text-lg">Monitorizare inventar, strategii de lichidare și performanță pe categorii.</p>
             </div>
 
             <div class="flex flex-col gap-8">
-                <!-- ROW 1: Dead Stock Table -->
                 <div class="w-full rounded-2xl border border-slate-700 bg-slate-800 overflow-hidden shadow-2xl">
                     <div class="px-8 py-4 border-b border-slate-700 bg-slate-800/80 flex items-center justify-between">
                         <div class="flex items-center gap-3">
@@ -61,7 +51,9 @@ export const renderStock = (container, state) => {
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-700/50">
-                                    ${deadStock.map((product, index) => `
+                                    ${deadStock.length === 0 ? `
+                                        <tr><td colspan="6" class="px-8 py-8 text-center text-slate-500">Niciun produs stagnant identificat.</td></tr>
+                                    ` : deadStock.map((product, index) => `
                                         <tr class="hover:bg-slate-700/40 transition-all group">
                                             <td class="px-8 py-5">
                                                 <div class="flex items-center gap-4">
@@ -84,8 +76,8 @@ export const renderStock = (container, state) => {
                                                 </span>
                                             </td>
                                             <td class="px-8 py-5 text-base font-bold text-slate-300">${product.stock_qty} <span class="text-xs text-slate-500 font-normal">buc</span></td>
-                                            <td class="px-8 py-5 text-base font-black text-white">${product.cost_price.toLocaleString('ro-RO')} <span class="text-xs text-slate-500 font-normal">RON</span></td>
-                                            <td class="px-8 py-5 text-base font-black text-emerald-400">${product.retail_price.toLocaleString('ro-RO')} <span class="text-xs text-emerald-600 font-normal">RON</span></td>
+                                            <td class="px-8 py-5 text-base font-black text-white">${Number(product.cost_price).toLocaleString('ro-RO')} <span class="text-xs text-slate-500 font-normal">RON</span></td>
+                                            <td class="px-8 py-5 text-base font-black text-emerald-400">${Number(product.retail_price).toLocaleString('ro-RO')} <span class="text-xs text-emerald-600 font-normal">RON</span></td>
                                             <td class="px-8 py-5 text-right">
                                                 <div class="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                                                     <button 
@@ -105,32 +97,31 @@ export const renderStock = (container, state) => {
                     </div>
                 </div>
 
-                <!-- ROW 2: Top Categories -->
                 <div class="w-full rounded-2xl border border-slate-700 bg-slate-800 p-8 shadow-2xl">
                     <div class="flex items-center justify-between mb-10">
                         <div class="flex flex-col gap-1">
-                            <h3 class="font-black text-white text-2xl tracking-tight uppercase">Top 10 Categorii Performante</h3>
-                            <p class="text-sm text-slate-500">Ierarhia categoriilor după volum de vânzări și viteza de rotație (Media 12 luni).</p>
+                            <h3 class="font-black text-white text-2xl tracking-tight uppercase">Top Categorii Performante</h3>
+                            <p class="text-sm text-slate-500">Ierarhia categoriilor după volum de vânzări și viteza de rotație.</p>
                         </div>
                         <button id="btn-toggle-cats"
                             class="flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-700 px-6 py-3 text-xs font-black text-slate-300 hover:text-primary-400 hover:border-primary-500/50 transition-all group"
                         >
                             <span class="material-symbols-outlined text-lg transition-transform group-hover:scale-125">${visibleCategories.length > 5 ? 'keyboard_arrow_up' : 'expand_more'}</span>
-                            ${visibleCategories.length > 5 ? 'RESTRÂNGE LISTA' : 'VEZI TOATE CELE 10 CATEGORII'}
+                            ${visibleCategories.length > 5 ? 'RESTRÂNGE LISTA' : 'VEZI TOATE CATEGORIILE'}
                         </button>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                        ${visibleCategories.map(item => `
+                        ${visibleCategories.length === 0 ? '<div class="col-span-5 text-center text-slate-500">Nu există date despre categorii.</div>' : visibleCategories.map(item => `
                             <div class="bg-slate-900/60 rounded-[2rem] p-8 border border-slate-700 hover:border-primary-500/50 transition-all group relative overflow-hidden flex flex-col justify-between min-h-[220px]">
                                 <div class="absolute -right-4 -top-4 text-7xl font-black text-slate-800/40 group-hover:text-primary-500/10 transition-all pointer-events-none italic">#${item.rank}</div>
                                 
                                 <div>
                                     <div class="flex items-center gap-4 mb-8">
                                         <div class="rounded-2xl bg-primary-600/10 p-3 text-primary-400 border border-primary-500/20 group-hover:bg-primary-600 group-hover:text-white transition-all shadow-lg">
-                                            <span class="material-symbols-outlined text-2xl">${item.icon}</span>
+                                            <span class="material-symbols-outlined text-2xl">${item.icon || 'category'}</span>
                                         </div>
-                                        <span class="text-[10px] font-black uppercase px-3 py-1 rounded-full border ${item.statusColor} bg-slate-900 shadow-sm">${item.status}</span>
+                                        <span class="text-[10px] font-black uppercase px-3 py-1 rounded-full border ${item.statusColor || 'text-slate-400'} bg-slate-900 shadow-sm">${item.status || 'N/A'}</span>
                                     </div>
                                     
                                     <h4 class="text-slate-500 text-xs font-black uppercase tracking-[0.2em] mb-2">${item.cat}</h4>
@@ -151,7 +142,6 @@ export const renderStock = (container, state) => {
                     </div>
                 </div>
 
-                <!-- ROW 3: Chart -->
                 <div class="w-full rounded-2xl border border-slate-700 bg-slate-800 p-8 shadow-2xl">
                     <div class="flex items-center justify-between mb-10">
                         <div class="flex flex-col gap-1">
@@ -174,7 +164,6 @@ export const renderStock = (container, state) => {
                 </div>
             </div>
             
-            <!-- Modal Container (Hidden by default) -->
             <div id="modal-container" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in"></div>
         </div>
         `;
@@ -277,7 +266,6 @@ export const renderStock = (container, state) => {
 
         modalContainer.innerHTML = `
             <div class="w-full max-w-3xl rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl md:p-8" onclick="event.stopPropagation()">
-                <!-- Header -->
                 <div class="flex items-start gap-4 mb-8">
                     <div class="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-800">
                         <img src="${product.image_url}" alt="${product.name}" class="h-full w-full object-cover" />
@@ -292,7 +280,6 @@ export const renderStock = (container, state) => {
                     </div>
                 </div>
 
-                <!-- Simulator -->
                 <div class="space-y-6 rounded-lg bg-slate-800/50 p-6 border border-slate-700/50">
                      <h3 class="text-sm font-medium text-center text-slate-400 uppercase tracking-wider pb-4 border-b border-slate-700">Simulator Discount & Preț</h3>
                      
@@ -343,7 +330,6 @@ export const renderStock = (container, state) => {
                      </div>
                 </div>
 
-                <!-- Actions -->
                 <div class="mt-8 flex items-center justify-between border-t border-slate-700 pt-6">
                     <button id="btn-reset" class="text-sm text-slate-400 hover:text-white">Resetează</button>
                     <div class="flex gap-4">
@@ -360,10 +346,12 @@ export const renderStock = (container, state) => {
 
         // Modal Listeners
         const inputPrice = document.getElementById('input-price');
-        inputPrice.addEventListener('input', (e) => {
-            newPrice = Number(e.target.value);
-            updateSimulation();
-        });
+        if(inputPrice) {
+            inputPrice.addEventListener('input', (e) => {
+                newPrice = Number(e.target.value);
+                updateSimulation();
+            });
+        }
 
         document.getElementById('btn-close').onclick = () => {
             modalContainer.classList.add('hidden');
