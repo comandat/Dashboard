@@ -1,16 +1,15 @@
 /**
  * Add Expense View
- * Gestionare încărcare facturi, validare și trimitere către baza de date
+ * Gestionare încărcare facturi, validare și trimitere Batch către n8n
  */
 import { store } from '../store.js';
-import { extractExpenseFromDocument, addExpense } from '../api.js';
+import { extractExpenseFromDocument, syncExpenses } from '../api.js';
 
 export const renderAddExpense = (container, state) => {
     let drafts = [];
     let isSavingAll = false;
     let previewUrl = null;
 
-    // Lista categoriilor disponibile pentru Dropdown
     const CATEGORIES = ["COMISIOANE", "TRANSPORT", "INFRASTRUCTURA", "TAXE", "SALARII", "OPERATIONAL", "ALTELE"];
 
     const getHTML = () => {
@@ -71,8 +70,7 @@ export const renderAddExpense = (container, state) => {
                     </div>
                 </div>
 
-                <div id="drafts-list" class="flex flex-col gap-3">
-                    </div>
+                <div id="drafts-list" class="flex flex-col gap-3"></div>
             </div>
 
             <div id="preview-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
@@ -106,9 +104,9 @@ export const renderAddExpense = (container, state) => {
         if(header) header.style.display = 'grid'; 
         saveAllBtn.classList.remove('hidden');
 
-        // State Update Buton Salvare
+        // Loading State for Button
         if (isSavingAll) {
-            document.getElementById('text-save-all').innerText = 'SE PROCESEAZĂ...';
+            document.getElementById('text-save-all').innerText = 'SE VERIFICĂ & SALVEAZĂ...';
             document.getElementById('icon-save-all').innerText = 'hourglass_top';
             document.getElementById('icon-save-all').classList.add('animate-spin');
             saveAllBtn.setAttribute('disabled', 'true');
@@ -123,7 +121,9 @@ export const renderAddExpense = (container, state) => {
         }
 
         list.innerHTML = drafts.map(draft => `
-            <div class="rounded-3xl border border-slate-700 bg-slate-800 p-4 flex flex-col xl:flex-row gap-6 items-start xl:items-center relative shadow-lg ${draft.isProcessing ? 'opacity-70' : 'hover:border-slate-600'} transition-all">
+            <div class="rounded-3xl border transition-all p-4 flex flex-col xl:flex-row gap-6 items-start xl:items-center relative shadow-lg 
+                ${draft.isProcessing ? 'opacity-70 border-slate-700' : 
+                  draft.error ? 'border-red-500 bg-red-500/5' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}">
                 
                 <div class="flex items-center gap-4 w-full xl:w-[250px] shrink-0 border-b xl:border-b-0 border-slate-700/50 pb-4 xl:pb-0">
                      <div class="btn-preview cursor-pointer h-12 w-12 flex items-center justify-center rounded-xl ${draft.isProcessing ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-700 text-slate-300 hover:bg-primary-600 hover:text-white'} transition-colors shadow-inner" data-id="${draft.tempId}">
@@ -131,9 +131,12 @@ export const renderAddExpense = (container, state) => {
                      </div>
                      <div class="overflow-hidden">
                         <p class="text-xs font-black text-white uppercase truncate" title="${draft.fileName}">${draft.fileName}</p>
-                        <p class="text-[10px] font-bold ${draft.isProcessing ? 'text-amber-500' : 'text-emerald-500'} uppercase tracking-widest">
-                            ${draft.isProcessing ? 'Se extrage...' : 'Pregătit'}
-                        </p>
+                        ${draft.error 
+                            ? `<p class="text-[10px] font-bold text-red-500 uppercase tracking-widest animate-pulse flex items-center gap-1"><span class="material-symbols-outlined text-xs">warning</span> DUPLICAT</p>`
+                            : `<p class="text-[10px] font-bold ${draft.isProcessing ? 'text-amber-500' : 'text-emerald-500'} uppercase tracking-widest">
+                                ${draft.isProcessing ? 'Se extrage...' : 'Pregătit'}
+                               </p>`
+                        }
                      </div>
                 </div>
 
@@ -175,7 +178,7 @@ export const renderAddExpense = (container, state) => {
                             class="draft-input w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-xs font-bold text-white focus:border-primary-500 outline-none shadow-inner" />
                     </div>
 
-                     <div class="col-span-2 lg:col-span-1">
+                    <div class="col-span-2 lg:col-span-1">
                         <label class="xl:hidden text-[9px] font-black text-slate-500 uppercase px-2 mb-1 block">Categoria Platii</label>
                         <div class="relative">
                             <select data-id="${draft.tempId}" data-field="category" ${draft.isProcessing ? 'disabled' : ''}
@@ -190,6 +193,8 @@ export const renderAddExpense = (container, state) => {
                 <button data-id="${draft.tempId}" class="btn-delete flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 text-slate-500 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50 transition-all ml-2">
                     <span class="material-symbols-outlined text-lg">delete</span>
                 </button>
+                
+                ${draft.error ? `<div class="absolute inset-0 bg-red-500/5 pointer-events-none rounded-3xl border border-red-500/20"></div>` : ''}
             </div>
         `).join('');
 
@@ -204,24 +209,23 @@ export const renderAddExpense = (container, state) => {
                 const draft = drafts.find(d => d.tempId === id);
                 if (draft) {
                     draft[field] = val;
+                    // Resetare eroare la modificare (utilizatorul încearcă să corecteze)
+                    if (draft.error) {
+                        draft.error = false;
+                        renderDrafts(); // Re-render pentru a scoate roșul
+                        return; // Stop here to avoid loop, though render is fast
+                    }
 
-                    // --- LOGICA REACTIVĂ PENTRU TVA ---
-                    // Când modificăm 'amount' (Total), recalculăm automat TVA-ul ca 21%
                     if (field === 'amount' && !isNaN(val)) {
                         const newTva = parseFloat((val * 0.21).toFixed(2));
                         draft.tva = newTva;
-
-                        // Actualizăm vizual câmpul de TVA corespunzător
                         const tvaInput = document.querySelector(`.draft-input[data-id="${id}"][data-field="tva"]`);
-                        if (tvaInput) {
-                            tvaInput.value = newTva;
-                        }
+                        if (tvaInput) tvaInput.value = newTva;
                     }
                 }
             };
         });
 
-        // Event Delegation for Buttons
         list.onclick = async (e) => {
             const deleteBtn = e.target.closest('.btn-delete');
             if (deleteBtn) {
@@ -230,14 +234,11 @@ export const renderAddExpense = (container, state) => {
                 renderDrafts();
                 return;
             }
-
             const previewBtn = e.target.closest('.btn-preview');
             if (previewBtn) {
                 const id = previewBtn.getAttribute('data-id');
                 const draft = drafts.find(d => d.tempId === id);
-                if (draft && !draft.isManual && draft.file) {
-                    openPreview(draft);
-                }
+                if (draft && !draft.isManual && draft.file) openPreview(draft);
                 return;
             }
         };
@@ -248,13 +249,10 @@ export const renderAddExpense = (container, state) => {
         previewUrl = { url, type: draft.file.type, name: draft.fileName };
         const modal = document.getElementById('preview-modal');
         const content = document.getElementById('preview-content');
-        const title = document.getElementById('preview-title');
-
-        title.innerText = draft.fileName;
+        document.getElementById('preview-title').innerText = draft.fileName;
         content.innerHTML = draft.file.type.includes('pdf')
             ? `<iframe src="${url}" class="w-full h-full min-h-[70vh] rounded-xl" title="PDF Preview"></iframe>`
             : `<img src="${url}" alt="Preview" class="max-w-full h-auto mx-auto rounded-xl" />`;
-
         modal.classList.remove('hidden');
     }
 
@@ -264,20 +262,15 @@ export const renderAddExpense = (container, state) => {
             fileName: file.name,
             isProcessing: true,
             file: file,
-            // Valori implicite
             vendor: '', invoice_id: '', amount: 0, tva: 0, currency: 'RON', 
             date: new Date().toISOString().split('T')[0], category: 'ALTELE'
         }));
-
         drafts = [...newDrafts, ...drafts];
         renderDrafts();
 
-        // Procesare Secvențială
         for (const draft of newDrafts) {
             try {
-                // api.js face extracția + normalizarea furnizorului + maparea categoriei + calcul TVA
                 const result = await extractExpenseFromDocument(draft.file);
-                
                 const target = drafts.find(d => d.tempId === draft.tempId);
                 if (target) {
                     Object.assign(target, result); 
@@ -298,9 +291,7 @@ export const renderAddExpense = (container, state) => {
     container.innerHTML = getHTML();
     renderDrafts();
 
-    // Butoane Globale
     document.getElementById('btn-back').onclick = () => store.setView('dashboard');
-    
     document.getElementById('btn-manual').onclick = () => {
         drafts = [{
             tempId: Math.random().toString(36).substr(2, 9),
@@ -317,46 +308,78 @@ export const renderAddExpense = (container, state) => {
         isSavingAll = true;
         renderDrafts();
 
-        const validDrafts = drafts.filter(d => !d.isProcessing && d.vendor && d.amount);
+        const validDrafts = drafts.filter(d => !d.isProcessing && d.vendor && d.amount && !d.error);
         
-        for (const draft of validDrafts) {
-            // CALCUL FINAL PENTRU BAZA DE DATE
-            // Avem 'amount' care e Total și 'tva'.
-            // Baza de date vrea 'factura_valoare' (net)
-            const netVal = (parseFloat(draft.amount) - parseFloat(draft.tva)).toFixed(2);
+        if (validDrafts.length === 0) {
+            isSavingAll = false;
+            renderDrafts();
+            return;
+        }
 
-            await addExpense({
+        const payload = validDrafts.map(draft => {
+            const netVal = (parseFloat(draft.amount) - parseFloat(draft.tva)).toFixed(2);
+            return {
+                tempId: draft.tempId,
                 source_doc: draft.invoice_id,
                 furnizor: draft.vendor,
-                factura_valoare: Number(netVal), // Net
+                factura_valoare: Number(netVal),
                 factura_tva: Number(draft.tva),
-                factura_total: Number(draft.amount), // Total
+                factura_total: Number(draft.amount),
                 factura_moneda: draft.currency,
                 date: draft.date,
                 category: draft.category
+            };
+        });
+
+        // 1. Trimite Batch la n8n
+        const response = await syncExpenses(payload);
+
+        if (response.error) {
+            alert("Eroare de comunicare cu serverul.");
+            isSavingAll = false;
+            renderDrafts();
+            return;
+        }
+
+        // 2. Proceseaza Raspunsul
+        // response.results = [{ tempId, status: 'saved' | 'duplicate', message }]
+        const savedIds = [];
+        let duplicateCount = 0;
+
+        if (response.results && Array.isArray(response.results)) {
+            response.results.forEach(res => {
+                const draft = drafts.find(d => d.tempId === res.tempId);
+                if (!draft) return;
+
+                if (res.status === 'saved') {
+                    savedIds.push(res.tempId);
+                } else if (res.status === 'duplicate') {
+                    draft.error = true; // Activeaza chenarul rosu
+                    duplicateCount++;
+                }
             });
         }
 
-        // Eliminăm elementele salvate
-        drafts = drafts.filter(d => d.isProcessing || !d.vendor || !d.amount);
+        // 3. Sterge ce s-a salvat
+        drafts = drafts.filter(d => !savedIds.includes(d.tempId));
+        
         isSavingAll = false;
         renderDrafts();
-        
-        // Dacă am terminat, mergem la pagina Financiar
-        if (drafts.length === 0) {
+
+        if (duplicateCount > 0) {
+            // Nu dam alert enervant, utilizatorul vede rosu in lista
+            console.log("Duplicate detectate");
+        } else if (drafts.length === 0) {
             store.setView('financial');
         }
     };
 
-    // Logică Drag & Drop
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     dropZone.onclick = () => fileInput.click();
     fileInput.onchange = (e) => handleFiles(e.target.files);
     dropZone.ondragover = (e) => { e.preventDefault(); };
     dropZone.ondrop = (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
-
-    // Logică Modal Preview
     document.getElementById('preview-close').onclick = () => {
         document.getElementById('preview-modal').classList.add('hidden');
         if (previewUrl) URL.revokeObjectURL(previewUrl.url);
