@@ -8,7 +8,7 @@ const DATA_WEBHOOK_URL = 'https://automatizare.comandat.ro/webhook/get-raw-inter
 const LOGIN_WEBHOOK_URL = 'https://automatizare.comandat.ro/webhook/637e1f6e-7beb-4295-89bd-4d7022f12d45';
 const EXTRACT_WEBHOOK_URL = 'https://automatizare.comandat.ro/webhook/convert-invoice-data';
 // URL NOU: Webhook care primește lista, verifică duplicatele SQL și inserează doar ce e nou
-const BATCH_SYNC_URL = 'https://automatizare.comandat.ro/webhook/batch-check-and-insert'; 
+const BATCH_SYNC_URL = 'https://automatizare.comandat.ro/webhook/batch-insert-expenses'; 
 
 // --- 1. CONFIGURARE FURNIZORI (NORMALIZARE) ---
 const VENDOR_DB_MAPPING = {
@@ -202,3 +202,4 @@ export const addExpense = async (expense) => {
     console.warn("Use syncExpenses instead.");
     return true;
 };
+
