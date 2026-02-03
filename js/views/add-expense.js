@@ -1,5 +1,6 @@
 /**
- * Add Expense View - Updated cu noile cerinte
+ * Add Expense View
+ * Gestionare încărcare facturi, validare și trimitere către baza de date
  */
 import { store } from '../store.js';
 import { extractExpenseFromDocument, addExpense } from '../api.js';
@@ -62,7 +63,7 @@ export const renderAddExpense = (container, state) => {
                     <div class="grid grid-cols-7 gap-3">
                          <span class="text-[9px] font-black text-slate-500 uppercase px-2">Furnizor</span>
                          <span class="text-[9px] font-black text-slate-500 uppercase px-2">Serie/Nr</span>
-                         <span class="text-[9px] font-black text-slate-500 uppercase px-2">Suma</span>
+                         <span class="text-[9px] font-black text-slate-500 uppercase px-2">Suma (Total)</span>
                          <span class="text-[9px] font-black text-slate-500 uppercase px-2">Moneda</span>
                          <span class="text-[9px] font-black text-slate-500 uppercase px-2">TVA</span>
                          <span class="text-[9px] font-black text-slate-500 uppercase px-2">Data Facturii</span>
@@ -102,7 +103,7 @@ export const renderAddExpense = (container, state) => {
         }
 
         emptyState.style.display = 'none';
-        if(header) header.style.display = 'grid'; // sau 'flex' depinde de media query, dar il lasam grid
+        if(header) header.style.display = 'grid'; 
         saveAllBtn.classList.remove('hidden');
 
         // State Update Buton Salvare
@@ -198,11 +199,24 @@ export const renderAddExpense = (container, state) => {
                 const id = e.target.getAttribute('data-id');
                 const field = e.target.getAttribute('data-field');
                 let val = e.target.value;
-                if(e.target.type === 'number') val = Number(val);
+                if(e.target.type === 'number') val = parseFloat(val);
                 
                 const draft = drafts.find(d => d.tempId === id);
                 if (draft) {
                     draft[field] = val;
+
+                    // --- LOGICA REACTIVĂ PENTRU TVA ---
+                    // Când modificăm 'amount' (Total), recalculăm automat TVA-ul ca 21%
+                    if (field === 'amount' && !isNaN(val)) {
+                        const newTva = parseFloat((val * 0.21).toFixed(2));
+                        draft.tva = newTva;
+
+                        // Actualizăm vizual câmpul de TVA corespunzător
+                        const tvaInput = document.querySelector(`.draft-input[data-id="${id}"][data-field="tva"]`);
+                        if (tvaInput) {
+                            tvaInput.value = newTva;
+                        }
+                    }
                 }
             };
         });
@@ -250,7 +264,7 @@ export const renderAddExpense = (container, state) => {
             fileName: file.name,
             isProcessing: true,
             file: file,
-            // Defaults placeholders
+            // Valori implicite
             vendor: '', invoice_id: '', amount: 0, tva: 0, currency: 'RON', 
             date: new Date().toISOString().split('T')[0], category: 'ALTELE'
         }));
@@ -258,10 +272,10 @@ export const renderAddExpense = (container, state) => {
         drafts = [...newDrafts, ...drafts];
         renderDrafts();
 
-        // Process Sequentially
+        // Procesare Secvențială
         for (const draft of newDrafts) {
             try {
-                // api.js se ocupa de maparea initiala (inclusiv detectia categoriei)
+                // api.js face extracția + normalizarea furnizorului + maparea categoriei + calcul TVA
                 const result = await extractExpenseFromDocument(draft.file);
                 
                 const target = drafts.find(d => d.tempId === draft.tempId);
@@ -284,7 +298,7 @@ export const renderAddExpense = (container, state) => {
     container.innerHTML = getHTML();
     renderDrafts();
 
-    // Global Buttons
+    // Butoane Globale
     document.getElementById('btn-back').onclick = () => store.setView('dashboard');
     
     document.getElementById('btn-manual').onclick = () => {
@@ -306,34 +320,35 @@ export const renderAddExpense = (container, state) => {
         const validDrafts = drafts.filter(d => !d.isProcessing && d.vendor && d.amount);
         
         for (const draft of validDrafts) {
-            // Aici trimitem structura exacta ceruta de baza de date
-            // Calculam factura_valoare (NET) ca fiind Total - TVA
+            // CALCUL FINAL PENTRU BAZA DE DATE
+            // Avem 'amount' care e Total și 'tva'.
+            // Baza de date vrea 'factura_valoare' (net)
             const netVal = (parseFloat(draft.amount) - parseFloat(draft.tva)).toFixed(2);
 
             await addExpense({
                 source_doc: draft.invoice_id,
                 furnizor: draft.vendor,
-                factura_valoare: Number(netVal), 
+                factura_valoare: Number(netVal), // Net
                 factura_tva: Number(draft.tva),
-                factura_total: Number(draft.amount),
+                factura_total: Number(draft.amount), // Total
                 factura_moneda: draft.currency,
                 date: draft.date,
                 category: draft.category
             });
         }
 
-        // Remove saved items
+        // Eliminăm elementele salvate
         drafts = drafts.filter(d => d.isProcessing || !d.vendor || !d.amount);
         isSavingAll = false;
         renderDrafts();
         
-        // Daca nu mai sunt draft-uri, mergem la pagina Financiar
+        // Dacă am terminat, mergem la pagina Financiar
         if (drafts.length === 0) {
             store.setView('financial');
         }
     };
 
-    // D&D Logic
+    // Logică Drag & Drop
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     dropZone.onclick = () => fileInput.click();
@@ -341,6 +356,7 @@ export const renderAddExpense = (container, state) => {
     dropZone.ondragover = (e) => { e.preventDefault(); };
     dropZone.ondrop = (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
 
+    // Logică Modal Preview
     document.getElementById('preview-close').onclick = () => {
         document.getElementById('preview-modal').classList.add('hidden');
         if (previewUrl) URL.revokeObjectURL(previewUrl.url);
