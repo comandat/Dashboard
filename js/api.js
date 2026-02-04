@@ -148,10 +148,15 @@ export const extractExpenseFromDocument = async (file) => {
         if (!response.ok) throw new Error(`Eroare n8n: ${response.statusText}`);
         const result = await response.json();
 
+        const dateStr = result.date || new Date().toISOString().split('T')[0];
         const total = Number(result.factura_total) || 0;
         let tva = Number(result.factura_tva) || 0;
+
+        // LOGICĂ NOUĂ: Calcul automat TVA în funcție de dată dacă nu vine din n8n (sau e 0)
         if (tva === 0 && total > 0) {
-            tva = parseFloat((total * 0.21).toFixed(2));
+            // Dacă data e înainte de 1 August 2025, folosim 19%, altfel 21%
+            const rate = dateStr < '2025-08-01' ? 0.19 : 0.21;
+            tva = parseFloat((total * rate).toFixed(2));
         }
 
         const rawVendor = result.furnizor || '';
@@ -164,7 +169,7 @@ export const extractExpenseFromDocument = async (file) => {
             amount: total,          
             currency: result.factura_moneda || 'RON',
             tva: tva,
-            date: result.date || new Date().toISOString().split('T')[0],
+            date: dateStr,
             category: category
         };
 
@@ -202,5 +207,6 @@ export const addExpense = async (expense) => {
     console.warn("Use syncExpenses instead.");
     return true;
 };
+
 
 
