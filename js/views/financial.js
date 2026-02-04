@@ -18,6 +18,7 @@ export const renderFinancial = (container, state) => {
         { name: 'Comisioane', data: monthlyData.map(d => d.comisioane) },
         { name: 'Transport', data: monthlyData.map(d => d.transport) },
         { name: 'Infrastructură', data: monthlyData.map(d => d.infrastructura) },
+        { name: 'Operațional', data: monthlyData.map(d => d.operational) }, // <--- SERIE NOUĂ
         { name: 'Taxe', data: monthlyData.map(d => d.taxe) },
         { name: 'Altele', data: monthlyData.map(d => d.altele) }
     ];
@@ -119,6 +120,7 @@ export const renderFinancial = (container, state) => {
                                             ${expense.category.includes('TRANSPORT') ? 'local_shipping' :
                                               expense.category.includes('TAXE') ? 'account_balance' :
                                               expense.category.includes('SALARII') ? 'badge' : 
+                                              expense.category.includes('OPERATIONAL') ? 'business_center' :
                                               expense.category.includes('COMISIOANE') ? 'percent' : 'receipt_long'}
                                         </span>
                                     </div>
@@ -182,6 +184,7 @@ export const renderFinancial = (container, state) => {
             '#f87171', // Comisioane (Rosu deschis)
             '#60a5fa', // Transport (Albastru)
             '#a78bfa', // Infrastructura (Mov)
+            '#2dd4bf', // Operational (Teal / Cyan) -> NEW
             '#f472b6', // Taxe (Roz)
             '#94a3b8'  // Altele (Gri)
         ],
