@@ -166,11 +166,11 @@ export const extractExpenseFromDocument = async (file) => {
 
         const dateStr = result.date || new Date().toISOString().split('T')[0];
         const total = Number(result.factura_total) || 0;
-        let tva = Number(result.factura_tva) || 0;
+        let tva = 0;
 
-        // LOGICĂ NOUĂ: Calcul automat TVA în funcție de dată dacă nu vine din n8n (sau e 0)
-        if (tva === 0 && total > 0) {
-            // Dacă data e înainte de 1 August 2025, folosim 19%, altfel 21%
+        // MODIFICARE: Calculăm TVA automat mereu, suprascriind valoarea de la AI
+        // Regula: < 1 Aug 2025 => 19%, >= 1 Aug 2025 => 21%
+        if (total > 0) {
             const rate = dateStr < '2025-08-01' ? 0.19 : 0.21;
             tva = parseFloat((total * rate).toFixed(2));
         }
