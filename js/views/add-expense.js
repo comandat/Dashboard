@@ -317,15 +317,15 @@ export const renderAddExpense = (container, state) => {
         }
 
         const payload = validDrafts.map(draft => {
-            const netVal = (parseFloat(draft.amount) - parseFloat(draft.tva)).toFixed(2);
+            const totalVal = (parseFloat(draft.amount) + parseFloat(draft.tva)).toFixed(2);
             return {
                 tempId: draft.tempId,
                 // MODIFICARE: Adăugăm prefixul MANUAL-INTERNAL- pentru a proteja la ștergerea automată
                 source_doc: 'MANUAL-INTERNAL-' + (draft.invoice_id || ''), 
                 furnizor: draft.vendor,
-                factura_valoare: Number(netVal),
+                factura_valoare: Number(draft.amount),
                 factura_tva: Number(draft.tva),
-                factura_total: Number(draft.amount),
+                factura_total: Number(totalVal),
                 factura_moneda: draft.currency,
                 date: draft.date,
                 category: draft.category
