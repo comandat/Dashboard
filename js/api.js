@@ -19,7 +19,7 @@ const VENDOR_DB_MAPPING = {
     "SMARTIT GLOBAL SRL": ["SMARTIT"],
     "MECANO VALMAR SRL": ["MECANO"],
     "Rogri Impex SRL": ["ROGRI"], 
-    "DANTE INTERNATIONAL SA": ["DANTE", "EMAG"],
+    "DANTE INTERNATIONAL SA": ["DANTE"], // Modificat: S-a scos "EMAG" de aici
     "BRAND DESIGN TEAM SRL": ["BRAND DESIGN"],
     "SEZELIA COM SRL": ["SEZELIA"],
     "S.P.N. ENACHE MARINA CECILIA SI ASOCIATII": ["ENACHE MARINA", "NOTAR", "CABINET INDIVIDUAL"],
@@ -70,6 +70,22 @@ const CATEGORY_MAP = {
 const normalizeVendor = (rawName) => {
     if (!rawName) return "";
     const upperRaw = rawName.toUpperCase();
+
+    // --- 1. REGULI PRIORITARE (CUSTOM LOGIC) ---
+
+    // REGULA 1: eMAG Ungaria
+    // Se verifică dacă conține "EMAG" SI ("KFT" SAU "MAGYAR")
+    if (upperRaw.includes("EMAG") && (upperRaw.includes("KFT") || upperRaw.includes("MAGYAR"))) {
+        return "eMAG Magyarország Kft.";
+    }
+
+    // REGULA 2: eMAG Bulgaria
+    // Se verifică dacă conține ("EMAG" SI "OOD") SAU match exact (case-insensitive)
+    if ((upperRaw.includes("EMAG") && upperRaw.includes("OOD")) || upperRaw === "EMAG INTERNATIONAL OOD") {
+        return "eMag International OOD";
+    }
+
+    // --- 2. REGULI STANDARD DIN MAPARE ---
     for (const [officialName, keywords] of Object.entries(VENDOR_DB_MAPPING)) {
         if (keywords.some(k => upperRaw.includes(k))) {
             return officialName; 
@@ -207,6 +223,3 @@ export const addExpense = async (expense) => {
     console.warn("Use syncExpenses instead.");
     return true;
 };
-
-
-
