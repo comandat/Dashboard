@@ -62,7 +62,7 @@ export const renderAddExpense = (container, state) => {
                     <div class="grid grid-cols-7 gap-3">
                          <span class="text-[9px] font-black text-slate-500 uppercase px-2">Furnizor</span>
                          <span class="text-[9px] font-black text-slate-500 uppercase px-2">Serie/Nr</span>
-                         <span class="text-[9px] font-black text-slate-500 uppercase px-2">Suma (Total)</span>
+                         <span class="text-[9px] font-black text-slate-500 uppercase px-2">Suma (Net)</span>
                          <span class="text-[9px] font-black text-slate-500 uppercase px-2">Moneda</span>
                          <span class="text-[9px] font-black text-slate-500 uppercase px-2">TVA</span>
                          <span class="text-[9px] font-black text-slate-500 uppercase px-2">Data Facturii</span>
@@ -198,6 +198,12 @@ export const renderAddExpense = (container, state) => {
             </div>
         `).join('');
 
+        // Funcție helper pentru determinarea cotei TVA
+        const getVatRate = (dateString) => {
+            if (!dateString) return 0.21; // Default
+            return dateString < '2025-08-01' ? 0.19 : 0.21;
+        };
+
         // Event Listeners for Inputs
         document.querySelectorAll('.draft-input').forEach(input => {
             input.oninput = (e) => {
@@ -209,18 +215,39 @@ export const renderAddExpense = (container, state) => {
                 const draft = drafts.find(d => d.tempId === id);
                 if (draft) {
                     draft[field] = val;
-                    // Resetare eroare la modificare (utilizatorul încearcă să corecteze)
+
+                    // Resetare eroare la modificare
                     if (draft.error) {
                         draft.error = false;
-                        renderDrafts(); // Re-render pentru a scoate roșul
+                        renderDrafts(); 
                         return;
                     }
 
+                    // CAZ 1: Se modifică SUMA -> Recalculăm TVA conform datei curente
                     if (field === 'amount' && !isNaN(val)) {
-                        const newTva = parseFloat((val * 0.21).toFixed(2));
+                        const rate = getVatRate(draft.date);
+                        const newTva = parseFloat((val * rate).toFixed(2));
+                        
                         draft.tva = newTva;
+                        
+                        // Actualizăm vizual input-ul de TVA
                         const tvaInput = document.querySelector(`.draft-input[data-id="${id}"][data-field="tva"]`);
                         if (tvaInput) tvaInput.value = newTva;
+                    }
+
+                    // CAZ 2: Se modifică DATA -> Recalculăm TVA pentru suma existentă
+                    if (field === 'date') {
+                        const amount = parseFloat(draft.amount) || 0;
+                        if (amount > 0) {
+                            const rate = getVatRate(val);
+                            const newTva = parseFloat((amount * rate).toFixed(2));
+                            
+                            draft.tva = newTva;
+
+                            // Actualizăm vizual input-ul de TVA
+                            const tvaInput = document.querySelector(`.draft-input[data-id="${id}"][data-field="tva"]`);
+                            if (tvaInput) tvaInput.value = newTva;
+                        }
                     }
                 }
             };
