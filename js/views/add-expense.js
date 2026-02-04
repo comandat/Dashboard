@@ -72,17 +72,8 @@ export const renderAddExpense = (container, state) => {
 
                 <div id="drafts-list" class="flex flex-col gap-3"></div>
             </div>
-
-            <div id="preview-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-                <div class="relative w-full max-w-5xl max-h-[90vh] bg-slate-900 rounded-[2.5rem] border border-slate-700 shadow-2xl overflow-hidden flex flex-col">
-                    <div class="flex items-center justify-between px-8 py-6 border-b border-slate-700 bg-slate-800/50">
-                        <h3 id="preview-title" class="text-lg font-black text-white uppercase tracking-tight">Previzualizare</h3>
-                        <button id="preview-close" class="text-slate-400 hover:text-white">Închide</button>
-                    </div>
-                    <div id="preview-content" class="flex-1 overflow-auto bg-slate-950 p-8"></div>
-                </div>
+            
             </div>
-        </div>
         `;
     };
 
@@ -198,9 +189,9 @@ export const renderAddExpense = (container, state) => {
             </div>
         `).join('');
 
-        // Funcție helper pentru determinarea cotei TVA
+        // Helper pentru TVA
         const getVatRate = (dateString) => {
-            if (!dateString) return 0.21; // Default
+            if (!dateString) return 0.21;
             return dateString < '2025-08-01' ? 0.19 : 0.21;
         };
 
@@ -215,36 +206,24 @@ export const renderAddExpense = (container, state) => {
                 const draft = drafts.find(d => d.tempId === id);
                 if (draft) {
                     draft[field] = val;
-
-                    // Resetare eroare la modificare
                     if (draft.error) {
                         draft.error = false;
                         renderDrafts(); 
                         return;
                     }
-
-                    // CAZ 1: Se modifică SUMA -> Recalculăm TVA conform datei curente
                     if (field === 'amount' && !isNaN(val)) {
                         const rate = getVatRate(draft.date);
                         const newTva = parseFloat((val * rate).toFixed(2));
-                        
                         draft.tva = newTva;
-                        
-                        // Actualizăm vizual input-ul de TVA
                         const tvaInput = document.querySelector(`.draft-input[data-id="${id}"][data-field="tva"]`);
                         if (tvaInput) tvaInput.value = newTva;
                     }
-
-                    // CAZ 2: Se modifică DATA -> Recalculăm TVA pentru suma existentă
                     if (field === 'date') {
                         const amount = parseFloat(draft.amount) || 0;
                         if (amount > 0) {
                             const rate = getVatRate(val);
                             const newTva = parseFloat((amount * rate).toFixed(2));
-                            
                             draft.tva = newTva;
-
-                            // Actualizăm vizual input-ul de TVA
                             const tvaInput = document.querySelector(`.draft-input[data-id="${id}"][data-field="tva"]`);
                             if (tvaInput) tvaInput.value = newTva;
                         }
@@ -271,17 +250,58 @@ export const renderAddExpense = (container, state) => {
         };
     };
 
+    // --- MODIFICARE: Logica noua de Preview (Fix bug afisare sus + scroll) ---
     const openPreview = (draft) => {
         const url = URL.createObjectURL(draft.file);
         previewUrl = { url, type: draft.file.type, name: draft.fileName };
-        const modal = document.getElementById('preview-modal');
-        const content = document.getElementById('preview-content');
-        document.getElementById('preview-title').innerText = draft.fileName;
-        content.innerHTML = draft.file.type.includes('pdf')
+
+        // 1. Creăm elementul modalei dinamic
+        const modal = document.createElement('div');
+        modal.id = 'dynamic-preview-modal';
+        // Folosim fixed, z-index mare si inset-0 pentru full screen
+        modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md p-4';
+        
+        const contentHtml = draft.file.type.includes('pdf')
             ? `<iframe src="${url}" class="w-full h-full min-h-[70vh] rounded-xl" title="PDF Preview"></iframe>`
-            : `<img src="${url}" alt="Preview" class="max-w-full h-auto mx-auto rounded-xl" />`;
-        modal.classList.remove('hidden');
-    }
+            : `<img src="${url}" alt="Preview" class="max-w-full h-auto mx-auto rounded-xl max-h-[85vh]" />`;
+
+        modal.innerHTML = `
+            <div class="relative w-full max-w-5xl max-h-[90vh] bg-slate-900 rounded-[2.5rem] border border-slate-700 shadow-2xl overflow-hidden flex flex-col animate-fade-in">
+                <div class="flex items-center justify-between px-8 py-6 border-b border-slate-700 bg-slate-800/50">
+                    <h3 class="text-lg font-black text-white uppercase tracking-tight truncate pr-4">${draft.fileName}</h3>
+                    <button id="btn-close-preview" class="text-slate-400 hover:text-white transition-colors flex items-center gap-1 text-sm font-bold uppercase tracking-wider">
+                        <span class="material-symbols-outlined text-lg">close</span> Închide
+                    </button>
+                </div>
+                <div class="flex-1 overflow-auto bg-slate-950 p-8 flex items-center justify-center">
+                    ${contentHtml}
+                </div>
+            </div>
+        `;
+
+        // 2. Funcția de închidere
+        const close = () => {
+            document.body.style.overflow = ''; // Reactivăm scroll-ul
+            if (document.body.contains(modal)) {
+                document.body.removeChild(modal);
+            }
+            if (previewUrl) {
+                URL.revokeObjectURL(previewUrl.url);
+                previewUrl = null;
+            }
+        };
+
+        // Event listeners pentru închidere
+        modal.querySelector('#btn-close-preview').onclick = close;
+        modal.onclick = (e) => {
+            // Închide dacă dăm click pe fundal (negru), nu pe conținut
+            if (e.target === modal) close();
+        };
+
+        // 3. Atașăm la BODY și blocăm scroll-ul
+        document.body.appendChild(modal);
+        document.body.style.overflow = 'hidden'; // Blocăm scroll-ul în spate
+    };
 
     const handleFiles = async (files) => {
         const newDrafts = Array.from(files).map(file => ({
@@ -347,7 +367,6 @@ export const renderAddExpense = (container, state) => {
             const totalVal = (parseFloat(draft.amount) + parseFloat(draft.tva)).toFixed(2);
             return {
                 tempId: draft.tempId,
-                // MODIFICARE: Adăugăm prefixul MANUAL-INTERNAL- pentru a proteja la ștergerea automată
                 source_doc: 'MANUAL-INTERNAL-' + (draft.invoice_id || ''), 
                 furnizor: draft.vendor,
                 factura_valoare: Number(draft.amount),
@@ -403,9 +422,6 @@ export const renderAddExpense = (container, state) => {
     fileInput.onchange = (e) => handleFiles(e.target.files);
     dropZone.ondragover = (e) => { e.preventDefault(); };
     dropZone.ondrop = (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
-    document.getElementById('preview-close').onclick = () => {
-        document.getElementById('preview-modal').classList.add('hidden');
-        if (previewUrl) URL.revokeObjectURL(previewUrl.url);
-        previewUrl = null;
-    };
+    
+    // Notă: preview-close event listener e acum gestionat dinamic in openPreview
 };
