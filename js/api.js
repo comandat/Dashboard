@@ -126,13 +126,17 @@ export const getDashboardData = async (period = 'current_month') => {
             financialSummary: data.financialSummary || { net_profit: 0, revenue: 0, expenses_total: 0, margin_percent: 0, expense_coverage_percent: 0, break_even_target: 0 },
             monthlyData: data.monthlyData || [],
             expenses: data.recentExpenses || [], 
-            deadStock: data.deadStock || [],
+            
+            // --- NOILE DATA POINTS ---
+            inventoryHealth: data.inventoryHealth || null,       // KPI-urile generale (Status, % Dead Stock)
+            deadStockActionList: data.deadStockActionList || [], // Lista prioritizată Pas 1 / Pas 2
+            
             operationalOrders: data.operationalOrders || [],
             topCategories: data.topCategories || [] 
         };
     } catch (error) {
         console.error("Eroare la preluarea datelor:", error);
-        return { financialSummary: null, monthlyData: [], expenses: [], deadStock: [], operationalOrders: [], topCategories: [] };
+        return { financialSummary: null, monthlyData: [], expenses: [], inventoryHealth: null, deadStockActionList: [], operationalOrders: [], topCategories: [] };
     }
 };
 
@@ -223,3 +227,4 @@ export const addExpense = async (expense) => {
     console.warn("Use syncExpenses instead.");
     return true;
 };
+
