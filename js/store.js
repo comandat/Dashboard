@@ -13,16 +13,19 @@ const initialState = {
     financialSummary: null,
     monthlyData: [],
     expenses: [],
-    deadStock: [],
+    
+    // --- UPDATE AICI ---
+    inventoryHealth: null,       // Starea generală a stocului
+    deadStockActionList: [],     // Lista de produse pentru acțiune
+    
     operationalOrders: [],
-    topCategories: [] // Nou: Categoriile vin acum din API, nu mai sunt hardcodate
+    topCategories: []
 };
 
 export const store = {
     state: { ...initialState },
     listeners: [],
 
-    // Sistem simplu de abonare pentru update-uri UI
     subscribe(listener) {
         this.listeners.push(listener);
         return () => {
@@ -39,20 +42,20 @@ export const store = {
         this.notify();
     },
 
-    /**
-     * Inițializare: Trage toate datele la prima încărcare
-     */
     async init() {
         this.setState({ loading: true });
         try {
-            // Apel unic către n8n pentru toate datele
             const data = await getDashboardData(this.state.financialPeriod);
 
             this.setState({
                 financialSummary: data.financialSummary,
                 monthlyData: data.monthlyData,
                 expenses: data.expenses,
-                deadStock: data.deadStock,
+                
+                // --- UPDATE AICI ---
+                inventoryHealth: data.inventoryHealth,
+                deadStockActionList: data.deadStockActionList,
+                
                 operationalOrders: data.operationalOrders,
                 topCategories: data.topCategories,
                 loading: false
@@ -63,15 +66,10 @@ export const store = {
         }
     },
 
-    // Schimbarea vederii (paginii)
     async setView(view) {
         this.setState({ currentView: view });
     },
 
-    /**
-     * Schimbarea filtrului de perioadă (ex: Luna Trecută)
-     * Reîncarcă datele din n8n cu noul filtru.
-     */
     async setFinancialPeriod(period) {
         this.setState({ financialPeriod: period, loading: true });
         
@@ -82,7 +80,11 @@ export const store = {
                 financialSummary: data.financialSummary,
                 monthlyData: data.monthlyData,
                 expenses: data.expenses,
-                deadStock: data.deadStock,
+                
+                // --- UPDATE AICI ---
+                inventoryHealth: data.inventoryHealth,
+                deadStockActionList: data.deadStockActionList,
+                
                 operationalOrders: data.operationalOrders,
                 topCategories: data.topCategories,
                 loading: false
@@ -93,7 +95,6 @@ export const store = {
         }
     },
 
-    // Refresh rapid (opțional)
     async refreshExpenses() {
         await this.init();
     }
