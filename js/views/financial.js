@@ -1,26 +1,27 @@
-/**
- * Financial View
- */
 import { store } from '../store.js';
 
 export const renderFinancial = (container, state) => {
     const summary = state.financialSummary;
-    const expenses = state.expenses;
-    const monthlyData = state.monthlyData;
     const selectedPeriod = state.financialPeriod;
+    const rawMonthlyData = state.monthlyData || [];
+    const chartData = rawMonthlyData.slice(-12);
+    const currentMonthStr = new Date().toISOString().slice(0, 7);
+    const expenses = state.expenses.filter(ex => {
+        if(selectedPeriod === 'current_month') return ex.date.startsWith(currentMonthStr);
+        return true; 
+    });
 
-    // Chart Data Preparation - NOILE CATEGORII
-    const categories = monthlyData.map(d => d.month);
+    const categories = chartData.map(d => d.month);
     
     const series = [
-        { name: 'Profit Net', data: monthlyData.map(d => d.profit) },
-        { name: 'COGS', data: monthlyData.map(d => d.cogs) },
-        { name: 'Comisioane', data: monthlyData.map(d => d.comisioane) },
-        { name: 'Transport', data: monthlyData.map(d => d.transport) },
-        { name: 'Infrastructură', data: monthlyData.map(d => d.infrastructura) },
-        { name: 'Operațional', data: monthlyData.map(d => d.operational) }, // <--- SERIE NOUĂ
-        { name: 'Taxe', data: monthlyData.map(d => d.taxe) },
-        { name: 'Altele', data: monthlyData.map(d => d.altele) }
+        { name: 'Profit Net', data: chartData.map(d => d.profit) },
+        { name: 'COGS', data: chartData.map(d => d.cogs) },
+        { name: 'Comisioane', data: chartData.map(d => d.comisioane) },
+        { name: 'Transport', data: chartData.map(d => d.transport) },
+        { name: 'Infrastructură', data: chartData.map(d => d.infrastructura) },
+        { name: 'Operațional', data: chartData.map(d => d.operational) },
+        { name: 'Taxe', data: chartData.map(d => d.taxe) },
+        { name: 'Altele', data: chartData.map(d => d.altele) }
     ];
 
     const html = `
@@ -51,7 +52,7 @@ export const renderFinancial = (container, state) => {
         ].map(p => `
                     <button 
                         data-period="${p.id}"
-                        class="rounded-xl px-6 py-3 text-xs font-black transition-all duration-300 ${selectedPeriod === p.id
+                        class="period-btn rounded-xl px-6 py-3 text-xs font-black transition-all duration-300 ${selectedPeriod === p.id
                 ? 'bg-primary-600 text-white shadow-xl shadow-primary-600/40 transform scale-105'
                 : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800'
             }"
@@ -86,54 +87,40 @@ export const renderFinancial = (container, state) => {
                 `).join('')}
             </div>
 
-            <div class="lg:col-span-1 rounded-[1.5rem] border border-slate-700 bg-slate-900 p-6 flex flex-col h-[600px] lg:h-auto shadow-inner">
-                <div class="flex items-center justify-between mb-6">
+            <div class="lg:col-span-1 rounded-[1.5rem] border border-slate-700 bg-slate-900 p-6 flex flex-col shadow-inner">
+                <div class="flex items-center justify-between mb-4">
                     <h3 class="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Cheltuieli Recente</h3>
-                    <button id="btn-add-expense-fin"
-                        class="flex h-10 w-10 items-center justify-center rounded-full bg-primary-600 text-white hover:bg-primary-500 shadow-xl shadow-primary-600/30 transition-all hover:scale-110 active:scale-95"
-                    >
-                        <span class="material-symbols-outlined">add</span>
+                    <button id="btn-add-expense-fin" class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-white hover:bg-primary-500 shadow-lg hover:scale-110 active:scale-95 transition-all">
+                        <span class="material-symbols-outlined text-sm">add</span>
                     </button>
                 </div>
 
-                <div class="mb-6 relative group">
-                    <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 text-xl group-focus-within:text-primary-500 transition-colors">search</span>
-                    <input 
-                        type="text" 
-                        placeholder="CAUTĂ FURNIZOR..." 
-                        class="w-full rounded-xl bg-slate-800 border border-slate-700 pl-12 pr-4 py-3 text-xs font-bold text-white placeholder-slate-600 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
-                    />
-                </div>
-
-                <div class="flex flex-col flex-1 overflow-hidden">
-                    <div class="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1">
+                <div class="flex flex-col">
+                    <div class="max-h-[240px] overflow-y-auto space-y-2 custom-scrollbar pr-1">
                         ${expenses.length === 0 ? `
-                            <div class="flex flex-col items-center justify-center h-full text-slate-700 gap-4 opacity-50">
-                                <span class="material-symbols-outlined text-6xl">folder_off</span>
-                                <span class="text-xs font-black uppercase tracking-widest">Nicio înregistrare găsită</span>
+                            <div class="flex flex-col items-center justify-center h-32 text-slate-700 gap-2 opacity-50">
+                                <span class="material-symbols-outlined text-4xl">folder_off</span>
+                                <span class="text-[10px] font-black uppercase tracking-widest">Lipsă date</span>
                             </div>
                         ` : expenses.map((expense) => `
-                            <div class="group flex cursor-pointer items-center justify-between rounded-xl p-4 hover:bg-slate-800 transition-all border border-transparent hover:border-slate-700 shadow-sm">
-                                <div class="flex items-center gap-4">
-                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-800 text-slate-500 group-hover:bg-primary-600 group-hover:text-white transition-all border border-slate-700 shadow-inner">
-                                        <span class="material-symbols-outlined text-2xl">
+                            <div class="group flex cursor-pointer items-center justify-between rounded-xl p-3 hover:bg-slate-800 transition-all border border-transparent hover:border-slate-700 shadow-sm">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-slate-500 group-hover:bg-primary-600 group-hover:text-white transition-all border border-slate-700 shadow-inner">
+                                        <span class="material-symbols-outlined text-lg">
                                             ${expense.category.includes('TRANSPORT') ? 'local_shipping' :
                                               expense.category.includes('TAXE') ? 'account_balance' :
                                               expense.category.includes('SALARII') ? 'badge' : 
-                                              expense.category.includes('OPERATIONAL') ? 'business_center' :
-                                              expense.category.includes('COMISIOANE') ? 'percent' : 'receipt_long'}
+                                              expense.category.includes('OPERATIONAL') ? 'business_center' : 'receipt_long'}
                                         </span>
                                     </div>
-                                    <div class="overflow-hidden">
-                                        <p class="text-sm font-black text-white truncate group-hover:text-primary-400 transition-colors">${expense.vendor}</p>
-                                        <p class="text-[10px] font-black text-slate-500 uppercase flex items-center gap-2 mt-1">
-                                             ${expense.category}
-                                        </p>
+                                    <div class="overflow-hidden w-24">
+                                        <p class="text-xs font-black text-white truncate group-hover:text-primary-400 transition-colors">${expense.vendor}</p>
+                                        <p class="text-[9px] font-black text-slate-500 uppercase mt-0.5 truncate">${expense.category}</p>
                                     </div>
                                 </div>
                                 <div class="text-right shrink-0">
-                                    <p class="text-sm font-black text-white tracking-tight">${expense.amount.toLocaleString('ro-RO')} <span class="text-[10px] text-slate-600 font-bold ml-0.5">RON</span></p>
-                                    <p class="text-[10px] text-slate-600 font-bold uppercase mt-1 tracking-tighter">${expense.date}</p>
+                                    <p class="text-xs font-black text-white tracking-tight">${expense.amount.toLocaleString('ro-RO')} <span class="text-[9px] text-slate-600">RON</span></p>
+                                    <p class="text-[9px] text-slate-600 font-bold uppercase mt-0.5 tracking-tighter">${expense.date}</p>
                                 </div>
                             </div>
                         `).join('')}
@@ -145,17 +132,15 @@ export const renderFinancial = (container, state) => {
 
       <div class="rounded-[2.5rem] border border-slate-700 bg-slate-800 p-10 shadow-2xl relative overflow-hidden">
             <h3 class="text-2xl font-black text-white mb-2 uppercase tracking-tight">Dinamica Componentelor Venitului</h3>
-            <p class="text-base text-slate-500 mb-12">Vizualizare Profit, COGS și distribuția costurilor operaționale (Transport, Comisioane, Taxe).</p>
-            
-            <div class="h-[450px] w-full px-2" id="financial-chart"></div>
+            <p class="text-base text-slate-500 mb-12">Vizualizare Profit, COGS și distribuția costurilor operaționale.</p>
+            <div class="h-[500px] w-full px-2" id="financial-chart"></div>
       </div>
     </div>
     `;
 
     container.innerHTML = html;
 
-    // Listeners
-    container.querySelectorAll('button[data-period]').forEach(btn => {
+    container.querySelectorAll('.period-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const period = e.currentTarget.getAttribute('data-period');
             store.setFinancialPeriod(period);
@@ -166,32 +151,21 @@ export const renderFinancial = (container, state) => {
         store.setView('add-expense');
     });
 
-    // Chart Init
     const options = {
         series: series,
         chart: {
             type: 'bar',
             height: '100%',
             stacked: true,
-            stackType: 'normal', // Normal stack to see actual values
+            stackType: 'normal',
             toolbar: { show: false },
             fontFamily: 'Inter, sans-serif'
         },
-        // Culori distincte pentru fiecare categorie
-        colors: [
-            '#34d399', // Profit Net (Verde)
-            '#fbbf24', // COGS (Galben)
-            '#f87171', // Comisioane (Rosu deschis)
-            '#60a5fa', // Transport (Albastru)
-            '#a78bfa', // Infrastructura (Mov)
-            '#2dd4bf', // Operational (Teal / Cyan) -> NEW
-            '#f472b6', // Taxe (Roz)
-            '#94a3b8'  // Altele (Gri)
-        ],
+        colors: ['#34d399', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa', '#2dd4bf', '#f472b6', '#94a3b8'],
         plotOptions: {
             bar: {
                 horizontal: false,
-                columnWidth: '60%',
+                columnWidth: '50%',
                 borderRadius: 4
             },
         },
@@ -215,10 +189,17 @@ export const renderFinancial = (container, state) => {
         grid: {
             borderColor: '#334155',
             strokeDashArray: 4,
+            padding: { bottom: 20 },
             yaxis: { lines: { show: true } }
         },
         tooltip: {
             theme: 'dark',
+            shared: true,
+            intersect: false,
+            x: {
+                show: true,
+                format: 'MMMM yyyy'
+            },
             y: {
                 formatter: function (val) {
                     return val.toLocaleString('ro-RO') + " RON"
