@@ -83,9 +83,9 @@ export const renderStock = (container, state) => {
                                         <th class="px-4 py-5 border-b border-slate-700 text-center w-16">#</th>
                                         <th class="px-8 py-5 border-b border-slate-700">SKU</th>
                                         <th class="px-8 py-5 border-b border-slate-700">Acțiune</th>
-                                        <th class="px-8 py-5 border-b border-slate-700 text-center">Zile</th>
-                                        <th class="px-8 py-5 border-b border-slate-700 text-right">Valoare Blocată</th>
-                                        <th class="px-8 py-5 border-b border-slate-700 text-center">Preț Minim Activ</th>
+                                        <th class="px-8 py-5 border-b border-slate-700 text-center">Zile in Stoc</th>
+                                        <th class="px-8 py-5 border-b border-slate-700 text-right">Bani Blocați</th>
+                                        <th class="px-8 py-5 border-b border-slate-700 text-center">Cel mai mic pret activ</th>
                                         <th class="px-8 py-5 border-b border-slate-700"></th>
                                     </tr>
                                 </thead>
@@ -97,6 +97,11 @@ export const renderStock = (container, state) => {
                                         const badgeColor = isPas2 ? 'bg-red-500 text-white shadow-red-500/30' : 'bg-amber-500 text-white shadow-amber-500/30';
                                         const borderColor = isPas2 ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-amber-500';
                                         const minPrice = item.min_sale_price || 0;
+                                        
+                                        // Conditional color for days
+                                        let daysColor = 'text-slate-400';
+                                        if (item.days_in_stock >= 90) daysColor = 'text-red-500 font-black';
+                                        else if (item.days_in_stock >= 45) daysColor = 'text-yellow-500 font-bold';
 
                                         return `
                                         <tr class="hover:bg-slate-700/30 transition-all group ${borderColor} bg-slate-800/20">
@@ -118,13 +123,11 @@ export const renderStock = (container, state) => {
                                                     <span class="px-3 py-1 rounded-md text-[10px] font-black uppercase shadow-lg ${badgeColor}">
                                                         ${item.action_step}
                                                     </span>
-                                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-                                                        ${item.action_details}
-                                                    </span>
+                                                    ${item.action_details ? `<span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">${item.action_details}</span>` : ''}
                                                 </div>
                                             </td>
                                             <td class="px-8 py-5 text-center">
-                                                <div class="inline-flex items-center justify-center h-10 w-10 rounded-full bg-slate-900 font-black text-xs text-slate-400 border border-slate-700">
+                                                <div class="inline-flex items-center justify-center h-10 w-10 rounded-full bg-slate-900 border border-slate-700 ${daysColor}">
                                                     ${item.days_in_stock}
                                                 </div>
                                             </td>
@@ -141,7 +144,7 @@ export const renderStock = (container, state) => {
                                             </td>
                                             <td class="px-8 py-5 text-right">
                                                 <button class="btn-simulate opacity-0 group-hover:opacity-100 transition-all rounded-xl bg-slate-700 border border-slate-600 px-4 py-2 text-xs font-bold text-white hover:bg-primary-600 hover:border-primary-500 shadow-lg" data-idx="${index}">
-                                                    Lichidare
+                                                    Simulator Pret
                                                 </button>
                                             </td>
                                         </tr>
@@ -172,45 +175,38 @@ export const renderStock = (container, state) => {
 
         const unitCost = product.blocked_value / product.total_quantity;
         const currentSellingPrice = product.min_sale_price || 0;
-        
-        // Daca avem pret activ, il folosim pe acela. Daca nu, propunem cost + 10% ca fallback.
         let initialPrice = currentSellingPrice > 0 ? currentSellingPrice : (unitCost * 1.1);
 
         const updateSimulation = () => {
             const price = parseFloat(document.getElementById('input-price').value) || 0;
-            const commissionRate = 0.20; 
-            const commissionVal = price * commissionRate;
-            const netVal = price - unitCost - commissionVal;
-            const profitPercent = price > 0 ? (netVal / price) * 100 : -100;
-            const totalRecovered = price * product.total_quantity;
-
-            document.getElementById('sim-commission').innerText = Math.round(commissionVal);
+            const quantity = product.total_quantity;
             
-            const netEl = document.getElementById('sim-net');
-            netEl.innerHTML = `${Math.round(netVal)} RON`;
-            netEl.className = `text-3xl font-black ${netVal >= 0 ? 'text-emerald-500' : 'text-red-500'}`;
+            const revenue = price * quantity;
+            const commission = revenue * 0.20; // 20%
+            const totalCost = unitCost * quantity;
+            const profit = revenue - commission - totalCost;
 
-            const percEl = document.getElementById('sim-percent');
-            percEl.innerText = profitPercent.toFixed(1) + '%';
-            percEl.className = `font-bold ${profitPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
-
-            document.getElementById('sim-total-recovered').innerText = Math.round(totalRecovered).toLocaleString();
+            document.getElementById('sim-revenue').innerText = Math.round(revenue).toLocaleString();
+            document.getElementById('sim-commission').innerText = Math.round(commission).toLocaleString();
+            
+            const profitEl = document.getElementById('sim-profit');
+            profitEl.innerHTML = `${Math.round(profit).toLocaleString()} <span class="text-xs">RON</span>`;
+            profitEl.className = `text-2xl font-black ${profit >= 0 ? 'text-emerald-500' : 'text-red-500'}`;
         };
 
         modalContainer.innerHTML = `
             <div class="w-full max-w-2xl rounded-[2rem] border border-slate-700 bg-slate-900 p-8 shadow-2xl relative overflow-hidden" onclick="event.stopPropagation()">
                 <div class="text-center mb-8">
                     <div class="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-slate-800 border border-slate-700 mb-4">
-                        <span class="text-xs font-black uppercase tracking-widest text-slate-400">ANALIZĂ LICHIDARE</span>
+                        <span class="text-xs font-black uppercase tracking-widest text-slate-400">SIMULATOR PREȚ</span>
                     </div>
                     <h2 class="text-4xl font-black text-white leading-tight mb-2 font-mono tracking-tighter">${product.sku}</h2>
-                    <p class="text-sm text-slate-500">Stoc: <b class="text-white">${product.total_quantity} buc</b> | Cost Mediu (Real): <b class="text-white">${Math.round(unitCost)} RON</b></p>
-                    ${currentSellingPrice > 0 ? `<p class="text-xs text-emerald-500 font-bold mt-2 uppercase tracking-widest">Preț Minim Activ: ${currentSellingPrice} RON</p>` : ''}
+                    <p class="text-sm text-slate-500">Cantitate: <b class="text-white">${product.total_quantity} buc</b> | Cost Total: <b class="text-white">${Math.round(product.blocked_value)} RON</b></p>
                 </div>
 
                 <div class="bg-slate-800/50 rounded-3xl p-8 border border-slate-700/50">
                     <div class="flex flex-col items-center mb-8">
-                        <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">Preț Vânzare Propus</label>
+                        <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">Preț Vânzare Unitar</label>
                         <div class="relative">
                             <input type="number" id="input-price" value="${initialPrice.toFixed(2)}" class="w-40 bg-transparent border-b-2 border-primary-500 text-center text-5xl font-black text-white focus:outline-none py-2" />
                             <span class="absolute top-4 -right-8 text-lg font-bold text-slate-600">RON</span>
@@ -218,17 +214,20 @@ export const renderStock = (container, state) => {
                     </div>
 
                     <div class="grid grid-cols-3 gap-4 text-center border-t border-slate-700/50 pt-6">
-                        <div><p class="text-xs text-slate-500 uppercase tracking-widest mb-1">Cost Produs</p><p class="text-xl font-bold text-slate-300">-${Math.round(unitCost)}</p></div>
-                        <div><p class="text-xs text-slate-500 uppercase tracking-widest mb-1">Comision (~20%)</p><p class="text-xl font-bold text-slate-300" id="sim-commission">0</p></div>
-                        <div><p class="text-xs text-slate-500 uppercase tracking-widest mb-1">Net / Buc</p><div id="sim-net">0</div><div id="sim-percent">0%</div></div>
-                    </div>
-                </div>
-
-                <div class="mt-8 flex justify-center">
-                    <div class="rounded-xl bg-emerald-500/5 border border-emerald-500/10 p-4 text-center w-full">
-                        <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Cash Recuperat Total</p>
-                        <p class="text-2xl font-black text-emerald-400" id="sim-total-recovered">0</p>
-                        <p class="text-[10px] text-emerald-600/60 font-bold">RON</p>
+                        <div>
+                            <p class="text-xs text-slate-500 uppercase tracking-widest mb-1">Venit Total</p>
+                            <p class="text-xl font-black text-white" id="sim-revenue">0</p>
+                            <span class="text-[10px] text-slate-600 font-bold">RON</span>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500 uppercase tracking-widest mb-1">Comision Plătit</p>
+                            <p class="text-xl font-bold text-red-300" id="sim-commission">0</p>
+                            <span class="text-[10px] text-slate-600 font-bold">RON (20%)</span>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500 uppercase tracking-widest mb-1">Profit Final</p>
+                            <div id="sim-profit">0</div>
+                        </div>
                     </div>
                 </div>
 
