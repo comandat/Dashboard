@@ -6,6 +6,7 @@ import { renderStock } from './views/stock.js';
 import { renderOperational } from './views/operational.js';
 import { renderAddExpense } from './views/add-expense.js';
 import { loginUser } from './api.js'; // <--- Importăm funcția nouă
+import { renderCampaigns } from './views/campaigns.js';
 
 const app = document.getElementById('app');
 
@@ -106,3 +107,4 @@ const initAuth = async () => {
 
 // Pornim Auth Flow în loc de init direct
 initAuth();
+
