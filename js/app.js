@@ -40,6 +40,9 @@ const render = () => {
         case 'stock': renderStock(main, state); break;
         case 'operational': renderOperational(main, state); break;
         case 'add-expense': renderAddExpense(main, state); break;
+        // MODIFICAT AICI
+        case 'campaigns': renderCampaigns(main, state); break; 
+        case 'reports': main.innerHTML = `<div class="p-10 text-slate-500">Rapoarte - Coming Soon</div>`; break;
         default: main.innerHTML = `<div class="flex h-full items-center justify-center text-gray-400">Pagina în construcție</div>`;
     }
 };
@@ -107,4 +110,5 @@ const initAuth = async () => {
 
 // Pornim Auth Flow în loc de init direct
 initAuth();
+
 
