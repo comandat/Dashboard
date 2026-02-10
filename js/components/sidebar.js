@@ -19,12 +19,14 @@ export const renderSidebar = (currentView) => {
     const nav = document.createElement('nav');
     nav.className = "flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar";
 
-    const menuItems = [
+const menuItems = [
         { id: 'dashboard', label: 'Bord Operațional', icon: 'dashboard', badge: null },
         { id: 'financial', label: 'Financiar', icon: 'payments', badge: null },
         { id: 'stock', label: 'Stoc & Lichidare', icon: 'inventory_2', badge: null },
-        { id: 'operational', label: 'Rezolvare Blocaje (În construire)', icon: 'rule', badge: null },
+        { id: 'operational', label: 'Rezolvare Blocaje', icon: 'rule', badge: null },
         { id: 'reports', label: 'Rapoarte', icon: 'bar_chart', badge: null },
+        // MODIFICAT: Tab-ul Campanii
+        { id: 'campaigns', label: 'Campanii', icon: 'campaign', badge: 'BETA' },
     ];
 
     menuItems.forEach(item => {
@@ -68,3 +70,4 @@ export const renderSidebar = (currentView) => {
     aside.appendChild(bottomSection);
     return aside;
 };
+
