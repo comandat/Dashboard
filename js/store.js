@@ -42,44 +42,11 @@ export const store = {
         this.notify();
     },
 
-    /**
-     * Returnează costul de achiziție (COGS) pentru un SKU dat.
-     * Caută în lista principală de inventar.
-     */
-getProductCost(sku) {
-        if (!sku) return 0;
-
-        // Normalizăm SKU-ul
-        const cleanSku = String(sku).trim().toUpperCase();
-
-        // 1. Verificare Securizată pentru inventoryHealth
-        let allProducts = this.state.inventoryHealth;
-
-        // Dacă nu e array (e null, undefined, sau obiect), folosim o listă goală
-        if (!Array.isArray(allProducts)) {
-            // Debugging: Poți decomenta linia de mai jos ca să vezi ce primești de fapt în consolă
-            // console.warn("InventoryHealth nu este array! Este:", typeof allProducts, allProducts);
-            allProducts = []; 
-        }
-
-        const product = allProducts.find(p => 
-            (p.sku && String(p.sku).trim().toUpperCase() === cleanSku) ||
-            (p.part_number && String(p.part_number).trim().toUpperCase() === cleanSku)
-        );
-
-        if (product) {
-            return parseFloat(product.unit_cost) || parseFloat(product.purchase_price) || 0;
-        }
-
-        // 2. Fallback: Verificare Securizată pentru deadStockActionList
-        let deadStock = this.state.deadStockActionList;
-        if (!Array.isArray(deadStock)) {
-            deadStock = [];
-        }
-
-        const dsProduct = deadStock.find(p => String(p.sku).trim().toUpperCase() === cleanSku);
-        
-        return dsProduct ? (parseFloat(dsProduct.unit_cost) || 0) : 0;
+    getProductCost(sku) {
+        const cleanSku = String(sku || "").trim().toUpperCase();
+        const list = Array.isArray(this.state.deadStockActionList) ? this.state.deadStockActionList : [];
+        const p = list.find(item => String(item.sku).trim().toUpperCase() === cleanSku);
+        return (p && p.total_quantity) ? (parseFloat(p.blocked_value) / parseFloat(p.total_quantity)) : 0;
     },
 
     async init() {
