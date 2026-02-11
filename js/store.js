@@ -14,9 +14,9 @@ const initialState = {
     monthlyData: [],
     expenses: [],
     
-    // --- UPDATE AICI ---
-    inventoryHealth: null,       // Starea generală a stocului
-    deadStockActionList: [],     // Lista de produse pentru acțiune
+    // --- STOCURI & PRODUSE ---
+    inventoryHealth: null,       // Starea generală a stocului (Sursa Master pentru COGS)
+    deadStockActionList: [],     // Lista de produse pentru acțiune (Lichidare)
     
     operationalOrders: [],
     topCategories: []
@@ -42,6 +42,38 @@ export const store = {
         this.notify();
     },
 
+    /**
+     * Returnează costul de achiziție (COGS) pentru un SKU dat.
+     * Caută în lista principală de inventar.
+     */
+    getProductCost(sku) {
+        if (!sku) return 0;
+
+        // 1. Căutăm în lista completă de inventar (inventoryHealth)
+        // Aceasta ar trebui să conțină TOATE produsele
+        const allProducts = this.state.inventoryHealth || [];
+        
+        // Normalizăm SKU-ul pentru căutare (trim + uppercase)
+        const cleanSku = String(sku).trim().toUpperCase();
+
+        const product = allProducts.find(p => 
+            (p.sku && String(p.sku).trim().toUpperCase() === cleanSku) ||
+            (p.part_number && String(p.part_number).trim().toUpperCase() === cleanSku)
+        );
+
+        if (product) {
+            // Returnăm costul (verificăm mai multe posibile denumiri ale câmpului din n8n)
+            // Prioritizăm unit_cost, apoi purchase_price
+            return parseFloat(product.unit_cost) || parseFloat(product.purchase_price) || 0;
+        }
+
+        // 2. Fallback: Verificăm și în deadStockActionList (just in case)
+        const deadStock = this.state.deadStockActionList || [];
+        const dsProduct = deadStock.find(p => String(p.sku).trim().toUpperCase() === cleanSku);
+        
+        return dsProduct ? (parseFloat(dsProduct.unit_cost) || 0) : 0;
+    },
+
     async init() {
         this.setState({ loading: true });
         try {
@@ -52,7 +84,7 @@ export const store = {
                 monthlyData: data.monthlyData,
                 expenses: data.expenses,
                 
-                // --- UPDATE AICI ---
+                // Populăm datele de stoc
                 inventoryHealth: data.inventoryHealth,
                 deadStockActionList: data.deadStockActionList,
                 
@@ -81,7 +113,7 @@ export const store = {
                 monthlyData: data.monthlyData,
                 expenses: data.expenses,
                 
-                // --- UPDATE AICI ---
+                // Actualizăm și stocurile la schimbarea perioadei (dacă e cazul)
                 inventoryHealth: data.inventoryHealth,
                 deadStockActionList: data.deadStockActionList,
                 
