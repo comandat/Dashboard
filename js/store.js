@@ -46,15 +46,21 @@ export const store = {
      * Returnează costul de achiziție (COGS) pentru un SKU dat.
      * Caută în lista principală de inventar.
      */
-    getProductCost(sku) {
+getProductCost(sku) {
         if (!sku) return 0;
 
-        // 1. Căutăm în lista completă de inventar (inventoryHealth)
-        // Aceasta ar trebui să conțină TOATE produsele
-        const allProducts = this.state.inventoryHealth || [];
-        
-        // Normalizăm SKU-ul pentru căutare (trim + uppercase)
+        // Normalizăm SKU-ul
         const cleanSku = String(sku).trim().toUpperCase();
+
+        // 1. Verificare Securizată pentru inventoryHealth
+        let allProducts = this.state.inventoryHealth;
+
+        // Dacă nu e array (e null, undefined, sau obiect), folosim o listă goală
+        if (!Array.isArray(allProducts)) {
+            // Debugging: Poți decomenta linia de mai jos ca să vezi ce primești de fapt în consolă
+            // console.warn("InventoryHealth nu este array! Este:", typeof allProducts, allProducts);
+            allProducts = []; 
+        }
 
         const product = allProducts.find(p => 
             (p.sku && String(p.sku).trim().toUpperCase() === cleanSku) ||
@@ -62,13 +68,15 @@ export const store = {
         );
 
         if (product) {
-            // Returnăm costul (verificăm mai multe posibile denumiri ale câmpului din n8n)
-            // Prioritizăm unit_cost, apoi purchase_price
             return parseFloat(product.unit_cost) || parseFloat(product.purchase_price) || 0;
         }
 
-        // 2. Fallback: Verificăm și în deadStockActionList (just in case)
-        const deadStock = this.state.deadStockActionList || [];
+        // 2. Fallback: Verificare Securizată pentru deadStockActionList
+        let deadStock = this.state.deadStockActionList;
+        if (!Array.isArray(deadStock)) {
+            deadStock = [];
+        }
+
         const dsProduct = deadStock.find(p => String(p.sku).trim().toUpperCase() === cleanSku);
         
         return dsProduct ? (parseFloat(dsProduct.unit_cost) || 0) : 0;
