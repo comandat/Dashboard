@@ -2,6 +2,7 @@ const DATA_WEBHOOK_URL = 'https://automatizare.comandat.ro/webhook/get-raw-inter
 const LOGIN_WEBHOOK_URL = 'https://automatizare.comandat.ro/webhook/637e1f6e-7beb-4295-89bd-4d7022f12d45';
 const EXTRACT_WEBHOOK_URL = 'https://automatizare.comandat.ro/webhook/convert-invoice-data';
 const BATCH_SYNC_URL = 'https://automatizare.comandat.ro/webhook/batch-insert-expenses'; 
+const LIQUIDATION_WEBHOOK_URL = 'https://automatizare.comandat.ro/webhook/start-liquidation-step1';
 
 const VENDOR_DB_MAPPING = {
     "Amazonas Web Trading S.R.L. ": ["AMAZONAS"],
@@ -162,5 +163,25 @@ export const syncExpenses = async (expensesList) => {
     } catch (error) {
         console.error("Eroare la sincronizare:", error);
         return { error: true };
+    }
+};
+
+export const confirmLiquidationStep1 = async (sku, checkData) => {
+    try {
+        const response = await fetch(LIQUIDATION_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                sku: sku,
+                user: sessionStorage.getItem('currentUser'),
+                timestamp: new Date().toISOString(),
+                checks: checkData // Obiect cu { platforms: true, title: true... }
+            })
+        });
+        if (!response.ok) throw new Error('Eroare la salvare');
+        return await response.json();
+    } catch (error) {
+        console.error("Eroare lichidare:", error);
+        throw error;
     }
 };
