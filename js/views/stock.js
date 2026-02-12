@@ -1,4 +1,5 @@
 import { store } from '../store.js';
+import { confirmLiquidationStep1 } from '../api.js';
 
 export const renderStock = (container, state) => {
     const health = state.inventoryHealth || { 
@@ -82,10 +83,10 @@ export const renderStock = (container, state) => {
                                     <tr class="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">
                                         <th class="px-4 py-5 border-b border-slate-700 text-center w-16">#</th>
                                         <th class="px-8 py-5 border-b border-slate-700">SKU</th>
-                                        <th class="px-8 py-5 border-b border-slate-700">Acțiune</th>
+                                        <th class="px-8 py-5 border-b border-slate-700">Acțiune Lichidare</th>
                                         <th class="px-8 py-5 border-b border-slate-700 text-center">Zile in Stoc</th>
                                         <th class="px-8 py-5 border-b border-slate-700 text-right">Bani Blocați</th>
-                                        <th class="px-8 py-5 border-b border-slate-700 text-center">Cel mai mic pret activ</th>
+                                        <th class="px-8 py-5 border-b border-slate-700 text-center">Preț Curent</th>
                                         <th class="px-8 py-5 border-b border-slate-700"></th>
                                     </tr>
                                 </thead>
@@ -93,9 +94,6 @@ export const renderStock = (container, state) => {
                                     ${actionList.length === 0 ? `
                                         <tr><td colspan="7" class="px-8 py-12 text-center text-slate-500 italic text-lg">Stoc curat. Nu există produse stagnante.</td></tr>
                                     ` : actionList.map((item, index) => {
-                                        const isPas2 = item.action_step === 'PAS 2';
-                                        const badgeColor = isPas2 ? 'bg-red-500 text-white shadow-red-500/30' : 'bg-amber-500 text-white shadow-amber-500/30';
-                                        const borderColor = isPas2 ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-amber-500';
                                         const minPrice = item.min_sale_price || 0;
                                         
                                         // Conditional color for days
@@ -103,8 +101,51 @@ export const renderStock = (container, state) => {
                                         if (item.days_in_stock >= 90) daysColor = 'text-red-500 font-black';
                                         else if (item.days_in_stock >= 45) daysColor = 'text-yellow-500 font-bold';
 
+                                        // --- LOGICA STATUS LICHIDARE ---
+                                        const liqStatus = item.liquidation_status || 'NORMAL'; 
+                                        let actionContent = '';
+                                        
+                                        // Calcul zile de la activare Pas 1 (Mockup logic dacă nu vine din backend)
+                                        const daysSinceStep1 = item.step1_applied_at 
+                                            ? Math.floor((new Date() - new Date(item.step1_applied_at)) / (1000 * 60 * 60 * 24)) 
+                                            : 0;
+                                        const remainingDays = Math.max(0, 30 - daysSinceStep1);
+
+                                        if (liqStatus === 'NORMAL' || !item.step1_applied_at) {
+                                            // Buton Start Pas 1
+                                            actionContent = `
+                                                <button class="btn-step1 group flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-[10px] font-black uppercase text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20" data-idx="${index}">
+                                                    <span class="material-symbols-outlined text-base">playlist_add_check</span>
+                                                    Start Pas 1
+                                                </button>
+                                            `;
+                                        } else if (liqStatus === 'STEP_1_ACTIVE') {
+                                            // Status Timer
+                                            const isUrgent = remainingDays <= 5;
+                                            actionContent = `
+                                                <div class="flex flex-col items-start gap-1">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="h-2 w-2 rounded-full ${isUrgent ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}"></span>
+                                                        <span class="text-[10px] font-bold text-white uppercase tracking-wide">Pas 1 Activ</span>
+                                                    </div>
+                                                    <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                                                        ${remainingDays} zile rămase
+                                                    </span>
+                                                </div>
+                                            `;
+                                        } else {
+                                            // Pas 2 (Automatizare)
+                                            actionContent = `
+                                                <div class="flex flex-col items-start gap-1">
+                                                    <span class="px-2 py-1 rounded text-[9px] font-black uppercase bg-amber-500/20 text-amber-500 border border-amber-500/20">
+                                                        ${liqStatus.replace('STEP_2_', 'AUTOMAT: ')}
+                                                    </span>
+                                                </div>
+                                            `;
+                                        }
+
                                         return `
-                                        <tr class="hover:bg-slate-700/30 transition-all group ${borderColor} bg-slate-800/20">
+                                        <tr class="hover:bg-slate-700/30 transition-all group bg-slate-800/20">
                                             <td class="px-4 py-5 text-center">
                                                 <span class="text-xs font-black text-slate-500">
                                                     ${index + 1}
@@ -119,12 +160,7 @@ export const renderStock = (container, state) => {
                                                 </div>
                                             </td>
                                             <td class="px-8 py-5">
-                                                <div class="flex flex-col items-start gap-1">
-                                                    <span class="px-3 py-1 rounded-md text-[10px] font-black uppercase shadow-lg ${badgeColor}">
-                                                        ${item.action_step}
-                                                    </span>
-                                                    ${item.action_details ? `<span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">${item.action_details}</span>` : ''}
-                                                </div>
+                                                ${actionContent}
                                             </td>
                                             <td class="px-8 py-5 text-center">
                                                 <div class="inline-flex items-center justify-center h-10 w-10 rounded-full bg-slate-900 border border-slate-700 ${daysColor}">
@@ -144,7 +180,7 @@ export const renderStock = (container, state) => {
                                             </td>
                                             <td class="px-8 py-5 text-right">
                                                 <button class="btn-simulate opacity-0 group-hover:opacity-100 transition-all rounded-xl bg-slate-700 border border-slate-600 px-4 py-2 text-xs font-bold text-white hover:bg-primary-600 hover:border-primary-500 shadow-lg" data-idx="${index}">
-                                                    Simulator Pret
+                                                    Simulator
                                                 </button>
                                             </td>
                                         </tr>
@@ -162,6 +198,9 @@ export const renderStock = (container, state) => {
 
     container.innerHTML = getHTML();
 
+    // Event Listeners pentru Butoane
+    
+    // 1. Simulator Preț (Existent)
     container.querySelectorAll('.btn-simulate').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const idx = e.currentTarget.getAttribute('data-idx');
@@ -169,6 +208,104 @@ export const renderStock = (container, state) => {
         });
     });
 
+    // 2. Start Pas 1 (Nou)
+    container.querySelectorAll('.btn-step1').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const idx = e.currentTarget.getAttribute('data-idx');
+            openChecklistModal(actionList[idx]);
+        });
+    });
+
+    // --- MODAL CHECKLIST (PAS 1) ---
+    const openChecklistModal = (product) => {
+        const modalContainer = document.getElementById('modal-container');
+        modalContainer.classList.remove('hidden');
+
+        modalContainer.innerHTML = `
+            <div class="w-full max-w-lg rounded-[2rem] border border-slate-700 bg-slate-900 p-8 shadow-2xl relative overflow-hidden animate-fade-in" onclick="event.stopPropagation()">
+                <div class="mb-6 border-b border-slate-700 pb-4">
+                    <div class="inline-flex items-center gap-2 mb-2">
+                        <span class="material-symbols-outlined text-amber-500">assignment_turned_in</span>
+                        <h2 class="text-xl font-black text-white uppercase tracking-tight">Verificare Pas 1</h2>
+                    </div>
+                    <p class="text-sm text-slate-400">Pentru SKU: <b class="text-white font-mono">${product.sku}</b></p>
+                    <p class="text-xs text-slate-500 mt-1">Confirmarea resetează timer-ul la Ziua 0 (30 zile grație).</p>
+                </div>
+
+                <form id="step1-form" class="space-y-3">
+                    <label class="flex items-center gap-4 p-4 rounded-xl bg-slate-800 border border-slate-700 cursor-pointer hover:border-primary-500 transition-colors group">
+                        <input type="checkbox" name="platforms" class="w-5 h-5 rounded border-slate-600 bg-slate-900 text-primary-600 focus:ring-0 cursor-pointer" required>
+                        <span class="text-xs font-bold text-white group-hover:text-primary-400 transition-colors">Produsul este pe toate platformele?</span>
+                    </label>
+                    
+                    <label class="flex items-center gap-4 p-4 rounded-xl bg-slate-800 border border-slate-700 cursor-pointer hover:border-primary-500 transition-colors group">
+                        <input type="checkbox" name="title" class="w-5 h-5 rounded border-slate-600 bg-slate-900 text-primary-600 focus:ring-0 cursor-pointer" required>
+                        <span class="text-xs font-bold text-white group-hover:text-primary-400 transition-colors">Titlul este optimizat?</span>
+                    </label>
+
+                    <label class="flex items-center gap-4 p-4 rounded-xl bg-slate-800 border border-slate-700 cursor-pointer hover:border-primary-500 transition-colors group">
+                        <input type="checkbox" name="description" class="w-5 h-5 rounded border-slate-600 bg-slate-900 text-primary-600 focus:ring-0 cursor-pointer" required>
+                        <span class="text-xs font-bold text-white group-hover:text-primary-400 transition-colors">Descrierea este completă?</span>
+                    </label>
+
+                    <label class="flex items-center gap-4 p-4 rounded-xl bg-slate-800 border border-slate-700 cursor-pointer hover:border-primary-500 transition-colors group">
+                        <input type="checkbox" name="specs" class="w-5 h-5 rounded border-slate-600 bg-slate-900 text-primary-600 focus:ring-0 cursor-pointer" required>
+                        <span class="text-xs font-bold text-white group-hover:text-primary-400 transition-colors">Caracteristicile sunt completate?</span>
+                    </label>
+
+                    <label class="flex items-center gap-4 p-4 rounded-xl bg-slate-800 border border-slate-700 cursor-pointer hover:border-primary-500 transition-colors group">
+                        <input type="checkbox" name="price" class="w-5 h-5 rounded border-slate-600 bg-slate-900 text-primary-600 focus:ring-0 cursor-pointer" required>
+                        <span class="text-xs font-bold text-white group-hover:text-primary-400 transition-colors">Prețul este corect (vs piață)?</span>
+                    </label>
+
+                    <div class="pt-6 flex gap-3">
+                        <button type="button" id="btn-cancel-check" class="flex-1 py-3 rounded-xl border border-slate-600 text-slate-400 font-bold uppercase hover:text-white hover:bg-slate-800 transition-all text-xs tracking-wider">Anulează</button>
+                        <button type="submit" id="btn-confirm-check" class="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-black uppercase hover:bg-emerald-500 shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:grayscale transition-all text-xs tracking-wider flex items-center justify-center gap-2">
+                            <span>Confirmă & Start</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        const form = document.getElementById('step1-form');
+        const submitBtn = document.getElementById('btn-confirm-check');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            submitBtn.setAttribute('disabled', 'true');
+            submitBtn.innerHTML = `<span class="material-symbols-outlined animate-spin text-sm">sync</span> Se Procesează...`;
+            
+            // Colectăm starea checkbox-urilor
+            const formData = new FormData(form);
+            const checks = {
+                platforms: formData.has('platforms'),
+                title: formData.has('title'),
+                description: formData.has('description'),
+                specs: formData.has('specs'),
+                price: formData.has('price')
+            };
+
+            try {
+                // Apelăm API-ul (care va triggerui webhook-ul n8n)
+                await confirmLiquidationStep1(product.sku, checks);
+                
+                modalContainer.classList.add('hidden');
+                // Reîncărcăm datele pentru a vedea noul status
+                await store.init();
+            } catch (err) {
+                console.error(err);
+                alert("Eroare la salvare. Verifică conexiunea.");
+                submitBtn.removeAttribute('disabled');
+                submitBtn.innerHTML = "Confirmă & Start";
+            }
+        });
+
+        document.getElementById('btn-cancel-check').onclick = () => modalContainer.classList.add('hidden');
+        modalContainer.onclick = (e) => { if(e.target === modalContainer) modalContainer.classList.add('hidden'); };
+    };
+
+    // --- MODAL SIMULATOR (EXISTENT) ---
     const openSimulationModal = (product) => {
         const modalContainer = document.getElementById('modal-container');
         modalContainer.classList.remove('hidden');
