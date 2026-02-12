@@ -6,7 +6,25 @@ export const renderStock = (container, state) => {
         status: 'N/A', message: 'Nu există date.', dead_stock_percentage: 0, 
         total_inventory_value_ron: 0, dead_stock_value_90plus_ron: 0 
     };
-    const actionList = state.deadStockActionList || [];
+    
+    // --- LOGICA DE SORTARE ---
+    // 1. Prioritizăm produsele care NU au început procesul (cele mai urgente de verificat manual)
+    // 2. Apoi cele care sunt deja în proces
+    let actionList = [...(state.deadStockActionList || [])];
+    
+    actionList.sort((a, b) => {
+        // Verificăm dacă au status de lichidare setat
+        const aInProgress = a.liquidation_status && a.liquidation_status !== 'NORMAL';
+        const bInProgress = b.liquidation_status && b.liquidation_status !== 'NORMAL';
+
+        // Dacă A e în progres și B nu -> B vine primul
+        if (aInProgress && !bInProgress) return 1;
+        // Dacă A nu e în progres și B este -> A vine primul
+        if (!aInProgress && bInProgress) return -1;
+        
+        // Dacă ambele sunt la fel, păstrăm ordinea originală (bazată pe prioritatea din backend)
+        return 0;
+    });
 
     const getStatusColor = (status) => {
         if (status === 'CRITIC') return 'text-red-500 bg-red-500/10 border-red-500/20';
@@ -71,7 +89,7 @@ export const renderStock = (container, state) => {
                             </div>
                             <div>
                                 <h2 class="text-xl font-black text-white uppercase tracking-tight">Plan de Acțiune Prioritizat</h2>
-                                <p class="text-xs text-slate-500 font-bold uppercase tracking-widest">Sortat după prioritate de lichidare</p>
+                                <p class="text-xs text-slate-500 font-bold uppercase tracking-widest">Sortat: Verificare Manuală -> Monitorizare Automată</p>
                             </div>
                         </div>
                     </div>
@@ -85,7 +103,7 @@ export const renderStock = (container, state) => {
                                         <th class="px-8 py-5 border-b border-slate-700">SKU</th>
                                         <th class="px-8 py-5 border-b border-slate-700">Acțiune Lichidare</th>
                                         <th class="px-8 py-5 border-b border-slate-700 text-center">Zile in Stoc</th>
-                                        <th class="px-8 py-5 border-b border-slate-700 text-right">Bani Blocați</th>
+                                        <th class="px-8 py-5 border-b border-slate-700 text-right">Bani Blocați (COGS Total)</th>
                                         <th class="px-8 py-5 border-b border-slate-700 text-center">Preț Curent</th>
                                         <th class="px-8 py-5 border-b border-slate-700"></th>
                                     </tr>
@@ -105,14 +123,14 @@ export const renderStock = (container, state) => {
                                         const liqStatus = item.liquidation_status || 'NORMAL'; 
                                         let actionContent = '';
                                         
-                                        // Calcul zile de la activare Pas 1 (Mockup logic dacă nu vine din backend)
+                                        // Calcul zile de la activare Pas 1 
                                         const daysSinceStep1 = item.step1_applied_at 
                                             ? Math.floor((new Date() - new Date(item.step1_applied_at)) / (1000 * 60 * 60 * 24)) 
                                             : 0;
                                         const remainingDays = Math.max(0, 30 - daysSinceStep1);
 
                                         if (liqStatus === 'NORMAL' || !item.step1_applied_at) {
-                                            // Buton Start Pas 1
+                                            // Buton Start Pas 1 (Prioritar)
                                             actionContent = `
                                                 <button class="btn-step1 group flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-[10px] font-black uppercase text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20" data-idx="${index}">
                                                     <span class="material-symbols-outlined text-base">playlist_add_check</span>
@@ -134,12 +152,13 @@ export const renderStock = (container, state) => {
                                                 </div>
                                             `;
                                         } else {
-                                            // Pas 2 (Automatizare)
+                                            // Pas 2 (Automatizare activă)
                                             actionContent = `
                                                 <div class="flex flex-col items-start gap-1">
                                                     <span class="px-2 py-1 rounded text-[9px] font-black uppercase bg-amber-500/20 text-amber-500 border border-amber-500/20">
                                                         ${liqStatus.replace('STEP_2_', 'AUTOMAT: ')}
                                                     </span>
+                                                    <span class="text-[9px] text-slate-500">Ziua ${daysSinceStep1}</span>
                                                 </div>
                                             `;
                                         }
@@ -198,17 +217,16 @@ export const renderStock = (container, state) => {
 
     container.innerHTML = getHTML();
 
-    // Event Listeners pentru Butoane
-    
-    // 1. Simulator Preț (Existent)
+    // Event Listeners
+
     container.querySelectorAll('.btn-simulate').forEach(btn => {
         btn.addEventListener('click', (e) => {
+            // Căutăm itemul corect în lista SORTATĂ, nu în cea originală din state
             const idx = e.currentTarget.getAttribute('data-idx');
             openSimulationModal(actionList[idx]);
         });
     });
 
-    // 2. Start Pas 1 (Nou)
     container.querySelectorAll('.btn-step1').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const idx = e.currentTarget.getAttribute('data-idx');
@@ -221,6 +239,16 @@ export const renderStock = (container, state) => {
         const modalContainer = document.getElementById('modal-container');
         modalContainer.classList.remove('hidden');
 
+        // --- CALCUL CRITIC: Aici "înghețăm" COGS-ul pentru automatizare ---
+        const totalBlocked = parseFloat(product.blocked_value) || 0;
+        const totalQty = parseFloat(product.total_quantity) || 1;
+        
+        // COGS Unitar = Valoare Blocata Totala / Cantitate Totala
+        const unitCogs = (totalBlocked / totalQty).toFixed(2);
+        
+        // Preț curent de vânzare
+        const currentPrice = parseFloat(product.min_sale_price || 0).toFixed(2);
+
         modalContainer.innerHTML = `
             <div class="w-full max-w-lg rounded-[2rem] border border-slate-700 bg-slate-900 p-8 shadow-2xl relative overflow-hidden animate-fade-in" onclick="event.stopPropagation()">
                 <div class="mb-6 border-b border-slate-700 pb-4">
@@ -229,7 +257,19 @@ export const renderStock = (container, state) => {
                         <h2 class="text-xl font-black text-white uppercase tracking-tight">Verificare Pas 1</h2>
                     </div>
                     <p class="text-sm text-slate-400">Pentru SKU: <b class="text-white font-mono">${product.sku}</b></p>
-                    <p class="text-xs text-slate-500 mt-1">Confirmarea resetează timer-ul la Ziua 0 (30 zile grație).</p>
+                    
+                    <div class="mt-4 flex gap-4 text-xs bg-slate-800/50 border border-slate-700 p-3 rounded-xl">
+                        <div>
+                            <span class="text-slate-500 uppercase font-bold text-[10px]">COGS Unitar (Înghețat)</span>
+                            <div class="text-white font-black text-base">${unitCogs} RON</div>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 uppercase font-bold text-[10px]">Preț Curent</span>
+                            <div class="text-white font-black text-base">${currentPrice} RON</div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-[10px] text-slate-500 mt-2 italic">Notă: COGS-ul calculat acum va fi folosit pentru prețul de lichidare finală (Pas 2).</p>
                 </div>
 
                 <form id="step1-form" class="space-y-3">
@@ -276,7 +316,6 @@ export const renderStock = (container, state) => {
             submitBtn.setAttribute('disabled', 'true');
             submitBtn.innerHTML = `<span class="material-symbols-outlined animate-spin text-sm">sync</span> Se Procesează...`;
             
-            // Colectăm starea checkbox-urilor
             const formData = new FormData(form);
             const checks = {
                 platforms: formData.has('platforms'),
@@ -286,13 +325,19 @@ export const renderStock = (container, state) => {
                 price: formData.has('price')
             };
 
+            // Payload extins cu valorile calculate
+            const payload = {
+                checks: checks,
+                cogs: Number(unitCogs),
+                initial_price: Number(currentPrice)
+            };
+
             try {
-                // Apelăm API-ul (care va triggerui webhook-ul n8n)
-                await confirmLiquidationStep1(product.sku, checks);
+                // Trimitem toate datele către webhook
+                await confirmLiquidationStep1(product.sku, payload);
                 
                 modalContainer.classList.add('hidden');
-                // Reîncărcăm datele pentru a vedea noul status
-                await store.init();
+                await store.init(); // Refresh pentru reordonare
             } catch (err) {
                 console.error(err);
                 alert("Eroare la salvare. Verifică conexiunea.");
@@ -305,7 +350,7 @@ export const renderStock = (container, state) => {
         modalContainer.onclick = (e) => { if(e.target === modalContainer) modalContainer.classList.add('hidden'); };
     };
 
-    // --- MODAL SIMULATOR (EXISTENT) ---
+    // --- MODAL SIMULATOR (EXISTENT - NESCHIMBAT) ---
     const openSimulationModal = (product) => {
         const modalContainer = document.getElementById('modal-container');
         modalContainer.classList.remove('hidden');
@@ -319,7 +364,7 @@ export const renderStock = (container, state) => {
             const quantity = product.total_quantity;
             
             const revenue = price * quantity;
-            const commission = revenue * 0.20; // 20%
+            const commission = revenue * 0.20; 
             const totalCost = unitCost * quantity;
             const profit = revenue - commission - totalCost;
 
